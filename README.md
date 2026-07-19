@@ -45,7 +45,7 @@ repositório.
 ### Inteligência Artificial
 - LangChain
 - Google Gemini *(inicial — gratuito e eficiente)*
-- OpenAI / Claude *(futuramente, conforme custo-benefício)*
+- Outros modelos *(futuramente, conforme custo-benefício)*
 
 ### Infraestrutura
 - Docker
@@ -129,9 +129,10 @@ over-engineering onde o domínio é simples.
 ### Hexagonal Architecture
 Ports and Adapters para as integrações externas.
 WhatsApp, modelos de IA e banco de dados são adapters
-que implementam ports definidos pelo domínio. Trocar
-Z-API por Meta Cloud API ou Gemini por OpenAI é
-criar um novo adapter — a regra de negócio não muda.
+que implementam ports definidos pelo domínio. O provedor
+de WhatsApp ainda está em aberto (API oficial da Meta vs.
+provedor terceiro); trocar de provedor, ou trocar o modelo
+de IA, é criar um novo adapter — a regra de negócio não muda.
 
 ---
 
@@ -159,7 +160,7 @@ AgentManager.load(tenant_id, nicho)
 
 A interface do AgentManager é estável e não muda
 conforme a IA evolui. Hoje retorna um agente único.
-Em 2027 retorna uma crew completa do CrewAI. O
+No futuro retorna uma crew completa do CrewAI. O
 worker não sabe a diferença.
 
 ---
@@ -307,15 +308,15 @@ uvicorn app.main:app --reload
 - **Tenant completamente isolado** — schema próprio,
   contexto próprio, agente próprio.
 - **Tecnologia não muda — só onde roda** — o código
-  de julho é o mesmo de 2028, só a infra evolui.
+  permanece o mesmo, só a infraestrutura ao redor evolui.
 - **IA independente do modelo** — LangChain abstrai,
   troca é variável de ambiente.
 - **Worker único no início** — handlers internos
   separados por responsabilidade, prontos para virar
   workers independentes quando o volume exigir.
 - **AgentManager com interface estável** — hoje
-  retorna agente único, em 2027 retorna CrewAI
-  completo sem o worker saber.
+  retorna agente único, no futuro retorna uma crew
+  do CrewAI sem o worker saber.
   
 ---
 
