@@ -25,6 +25,31 @@ repositório.
 
 ---
 
+## Fases de construção
+
+A construção do Orbi é **sequencial**: o backend é entregue inteiro,
+ponta a ponta (Fases 01 a 09), antes de começarem o frontend, o deploy
+e a evolução de longo prazo. Testes passando é critério de pronto de
+todas as fases.
+
+- **Fase 01 — Estrutura e ambiente** — repositórios estruturados e ambiente subindo com um comando.
+- **Fase 02 — Multi-tenancy + autenticação** — isolamento por schema, provisionamento de tenant, autenticação e autorização.
+- **Fase 03 — Core** — o núcleo funcional dentro do tenant: agenda, financeiro e pessoas.
+- **Fase 04 — Eventos** — comunicação orientada a eventos entre as partes.
+- **Fase 05 — Worker** — o worker único com handlers internos separados por responsabilidade.
+- **Fase 06 — Extensão Dental (backend)** — o primeiro nicho como plugin sobre o core, sem alterá-lo.
+- **Fase 07 — AgentManager + agente** — o agente de IA por tenant e nicho, atrás de interface estável.
+- **Fase 08 — Memória** — memória de longo prazo do agente com embeddings e pgvector (RAG).
+- **Fase 09 — Canal WhatsApp** — o agente conversando com o cliente final. **Fim do backend ponta a ponta.**
+- **Fase 10 — Frontend** — a interface completa sobre a API pronta (repositório `orbi-frontend`).
+- **Fase 11 — Deploy e produção** — o produto no ar, em produção.
+- **Fase 12 — Longo prazo** — whitelabel, novos nichos, CrewAI, billing/planos, LGPD, observabilidade e backup.
+
+O backend cobre da Fase 01 à Fase 09. Frontend (10), deploy (11) e
+longo prazo (12) vêm depois, sobre o backend já concluído.
+
+---
+
 ## Stack
 
 ### Backend
