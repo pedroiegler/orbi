@@ -184,3 +184,37 @@ def test_tracer_marks_failures_with_a_warning_level() -> None:
     outcome.status = "erp_timeout"
     LangfuseTracer(FakeClient()).record_turn(outcome, "pergunta", "sales_rep")
     assert captured[0]["level"] == "WARNING"
+
+
+def test_shadow_tolerates_legacy_rows_without_structured_arguments(
+    tenant_id: uuid.UUID,
+) -> None:
+    """A auditoria e append-only: linha antiga com argumento nao estruturado fica.
+
+    O shadow precisa atravessar o historico como ele e, nao como gostaria que
+    fosse — e ainda assim comparar a escolha de tool.
+    """
+    from sqlalchemy import text as sql
+
+    for _ in range(5):
+        _audit(tenant_id, "quanto tem de cimento?", "check_stock", {"product_term": "cimento"})
+
+    with admin_session() as session:
+        session.execute(
+            sql("ALTER TABLE audit_logs DISABLE TRIGGER audit_logs_append_only")
+        )
+        session.execute(
+            sql(
+                "UPDATE audit_logs SET tool_args = to_jsonb('product_term=cimento'::text) "
+                "WHERE tenant_id = :t"
+            ),
+            {"t": str(tenant_id)},
+        )
+        session.execute(sql("ALTER TABLE audit_logs ENABLE TRIGGER audit_logs_append_only"))
+
+    result = run_shadow(
+        tenant_id, "teste", llm=LLMRouter(primary=RuleBasedProvider()), record=False
+    )
+
+    assert result.sampled > 0
+    assert result.tool_agreement == 1.0

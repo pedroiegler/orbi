@@ -432,7 +432,7 @@ class OrbiRuntime:
             audit.write(
                 session,
                 self._audit_record(
-                    tenant, user, trace_id, inbound, spec, args, decision, envelope,
+                    tenant, user, trace_id, inbound, spec, _args_dict(args), decision, envelope,
                     status="ok", deadline=deadline, entity=entity,
                     erp_payload_hash=audit.hash_payload(_dump(payload)),
                     key_fields=key_fields,

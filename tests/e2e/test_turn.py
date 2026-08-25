@@ -246,3 +246,20 @@ def test_health_exposes_what_the_process_measured(harness: Harness) -> None:
     assert snapshot["turns"] >= 2
     assert snapshot["ambiguity_rate"] > 0
     assert "erp" in snapshot["stages_p50_ms"]
+
+
+def test_audit_stores_arguments_as_data_not_as_a_repr(harness: Harness) -> None:
+    """`tool_args` precisa ser consultável: é dele que sai o shadow eval."""
+    harness.ask("quanto tem de cimento?")
+
+    with tenant_session(harness.tenant_id) as session:
+        row = session.execute(
+            text(
+                "SELECT tool_args, tool_args->>'product_term' AS term "
+                "FROM audit_logs WHERE tenant_id = :t"
+            ),
+            {"t": str(harness.tenant_id)},
+        ).one()
+
+    assert isinstance(row.tool_args, dict)
+    assert row.term == "cimento"

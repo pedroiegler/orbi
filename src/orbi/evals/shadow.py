@@ -96,10 +96,19 @@ def sample_questions(
             "trace_id": row.trace_id,
             "question": DEFAULT_REDACTOR.redact(row.message_text),
             "tool_name": row.tool_name,
-            "tool_args": row.tool_args or {},
+            "tool_args": _as_args(row.tool_args),
         }
         for row in chosen
     ]
+
+
+def _as_args(stored: Any) -> dict[str, Any]:
+    """A auditoria e append-only: linha antiga fica como esta, para sempre.
+
+    Comparar argumentos so faz sentido quando os dois lados sao dicionario; o que
+    nao for entra como vazio e o shadow compara apenas a escolha de tool.
+    """
+    return dict(stored) if isinstance(stored, dict) else {}
 
 
 def run_shadow(
@@ -135,7 +144,9 @@ def run_shadow(
 
         if envelope.tool_name == case["tool_name"]:
             result.same_tool += 1
-            if _args_equivalent(case["tool_args"], envelope.tool_args):
+            if not case["tool_args"]:
+                result.same_args += 1  # sem argumentos gravados, nada a divergir
+            elif _args_equivalent(case["tool_args"], envelope.tool_args):
                 result.same_args += 1
             else:
                 result.divergences.append(

@@ -8,7 +8,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # pragma: no cover - apenas para tipagem
+    from orbi.tools.args import ToolArgs
 
 
 class ReasonCode(StrEnum):
@@ -33,7 +36,7 @@ class PolicyDecision:
     allowed: bool
     reason_code: ReasonCode | None = None
     detail: str | None = None
-    validated_args: Any = None
+    validated_args: ToolArgs | None = None
     """Argumentos ja validados pelo modelo Pydantic da tool."""
     policy_version_hash: str = ""
     checks: tuple[str, ...] = field(default=())
@@ -45,7 +48,7 @@ class PolicyDecision:
 
 
 def allow(
-    validated_args: Any, policy_version_hash: str, checks: tuple[str, ...]
+    validated_args: ToolArgs, policy_version_hash: str, checks: tuple[str, ...]
 ) -> PolicyDecision:
     return PolicyDecision(
         allowed=True,
