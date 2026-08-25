@@ -164,6 +164,19 @@ class EntityResolver:
         merged = self._merge(candidates, self._by_vector(query, entity_type))
         return self._decide(merged, term, entity_type, "vector")
 
+    def candidates(self, term: str, entity_type: str) -> list[Candidate]:
+        """Ranking bruto, sem aplicar limiar.
+
+        E o que a calibracao precisa: com os scores em maos, varrer pares de
+        limiar vira aritmetica, sem repetir a consulta ao banco.
+        """
+        query = self._builder.build(term)
+        if not query:
+            return []
+        return self._merge(
+            self._by_trigram(query, entity_type), self._by_vector(query, entity_type)
+        )
+
     # --- estagios --------------------------------------------------------
 
     def _by_alias(self, query: str, entity_type: str) -> Candidate | None:

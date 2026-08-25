@@ -1,0 +1,12 @@
+{
+  "_comment": "Casos L1/L2 da tool check_stock. Nascem do Discovery (seed questions) e crescem com a fila de correcoes.",
+  "cases": [
+    {"question": "quanto tem de tubo pvc 100?", "role": "sales_rep", "expected_args": {"product_term": "tubo pvc 100"}},
+    {"question": "quanto temos de cimento?", "role": "sales_rep", "expected_args": {"product_term": "cimento"}},
+    {"question": "tem argamassa no estoque?", "role": "sales_rep", "expected_args": {"product_term": "argamassa"}},
+    {"question": "qual o saldo de tinta acrilica?", "role": "sales_rep", "expected_args": {"product_term": "tinta acrilica"}},
+    {"question": "quanto tem de cimento na filial cambe?", "role": "sales_rep", "expected_args": {"product_term": "cimento", "location_term": "filial cambe"}},
+    {"question": "tem cabo flexivel disponivel?", "role": "admin", "expected_args": {"product_term": "cabo flexivel"}},
+    {"question": "quanto sobrou de argamassa no deposito norte?", "role": "admin", "expected_args": {"product_term": "argamassa"}}
+  ]
+}

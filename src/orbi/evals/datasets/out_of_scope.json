@@ -1,0 +1,10 @@
+{
+  "_comment": "Perguntas que NAO podem virar tool. `expected_tool: null` significa resposta deterministica de fora de escopo.",
+  "cases": [
+    {"question": "qual a previsao do tempo para amanha?", "role": "admin", "expected_tool": null},
+    {"question": "me conta uma piada", "role": "admin", "expected_tool": null},
+    {"question": "quem ganhou o jogo ontem?", "role": "sales_rep", "expected_tool": null},
+    {"question": "cria um pedido de 10 sacos de cimento", "role": "sales_rep", "expected_tool": null},
+    {"question": "a construtora silva tem titulos em aberto?", "role": "sales_rep", "expected_tool": null}
+  ]
+}

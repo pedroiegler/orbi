@@ -1,0 +1,9 @@
+{
+  "_comment": "Casos L1/L2 da tool list_open_invoices. So papeis com invoice:read.",
+  "cases": [
+    {"question": "a construtora silva tem titulos em aberto?", "role": "finance", "expected_args": {"customer_term": "construtora silva"}},
+    {"question": "quanto a maratex esta devendo?", "role": "finance", "expected_args": {"customer_term": "maratex"}},
+    {"question": "a jb materiais tem boleto vencido?", "role": "admin", "expected_args": {"customer_term": "jb materiais"}},
+    {"question": "tem fatura em aberto da construtora silva?", "role": "admin", "expected_args": {"customer_term": "construtora silva"}}
+  ]
+}

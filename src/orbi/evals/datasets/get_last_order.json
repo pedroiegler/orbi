@@ -1,0 +1,8 @@
+{
+  "_comment": "Casos L1/L2 da tool get_last_order.",
+  "cases": [
+    {"question": "qual o ultimo pedido da construtora silva?", "role": "sales_rep", "expected_args": {"customer_term": "construtora silva"}},
+    {"question": "qual a ultima compra da maratex?", "role": "sales_rep", "expected_args": {"customer_term": "maratex"}},
+    {"question": "quando a jb materiais comprou pela ultima vez?", "role": "admin", "expected_args": {"customer_term": "jb materiais"}}
+  ]
+}
