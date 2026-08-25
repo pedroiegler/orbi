@@ -150,7 +150,7 @@ dimensões. Sem Redis, sem fila, sem worker — entram quando houver gargalo med
 ## Testes
 
 ```bash
-pytest -q                       # 339 testes
+pytest -q                       # 361 testes (391 com um Odoo vivo)
 ruff check src tests && mypy src/orbi
 
 ORBI_ODOO_URL=http://localhost:8069 pytest tests/conformance tests/e2e -q

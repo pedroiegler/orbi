@@ -91,7 +91,7 @@ erp/adapters/* só é importado pela factory em erp/registry.py.
 ```bash
 docker compose -f docker/docker-compose.yml up -d   # Postgres com pgvector
 alembic upgrade head
-pytest -q                                            # 339 testes
+pytest -q                                            # 361 testes
 ruff check src tests && mypy src/orbi
 
 docker compose -f docker/docker-compose.odoo.yml up -d
