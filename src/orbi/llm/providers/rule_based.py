@@ -169,6 +169,10 @@ _NOISE_WORDS = {
     "e",
 }
 
+_LEADING_TOOL_WORDS = {"preco", "valor", "estoque", "saldo", "custo", "cotacao"}
+"""Sobra do gatilho quando a pergunta usa pronome: "qual o preco dele" deixa
+"preco dele", e o que interessa e o "dele" — o Runtime resolve pelo slot."""
+
 _ANAPHORA = {"dele", "dela", "desse", "dessa", "deste", "desta", "disso", "mesmo", "mesma", "ele"}
 
 
@@ -321,7 +325,7 @@ def _extract_quantity(text: str) -> Decimal | None:
 def _clean_term(text: str) -> str:
     tokens = [token for token in text.split() if token not in _NOISE_WORDS]
     leading = {"de", "do", "da", "o", "a", "os", "as", "em", "para", "no", "na"}
-    while tokens and tokens[0] in leading:
+    while tokens and (tokens[0] in leading or tokens[0] in _LEADING_TOOL_WORDS):
         tokens.pop(0)
     while tokens and tokens[-1] in {"de", "do", "da", "o", "a", "em", "para", "no", "na", "que"}:
         tokens.pop()

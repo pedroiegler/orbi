@@ -26,7 +26,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from orbi.core.deadline import Deadline
-from orbi.resolution.canonical import normalize
+from orbi.resolution.canonical import CanonicalNameBuilder, normalize
 from orbi.resolution.embeddings import EmbeddingPort
 
 ResolutionStatus = Literal["FOUND", "AMBIGUOUS", "NOT_FOUND"]
@@ -100,11 +100,15 @@ class EntityResolver:
         tenant_id: str,
         embedder: EmbeddingPort,
         thresholds: Thresholds | None = None,
+        builder: CanonicalNameBuilder | None = None,
     ) -> None:
         self._session = session
         self._tenant_id = str(tenant_id)
         self._embedder = embedder
         self._thresholds = thresholds or Thresholds()
+        # A pergunta passa pela mesma traducao do catalogo: comparar nome cru com
+        # nome canonico seria comparar coisas diferentes.
+        self._builder = builder or CanonicalNameBuilder()
 
     # --- entrada ---------------------------------------------------------
 
@@ -121,11 +125,13 @@ class EntityResolver:
         `allow_code_match` so e verdadeiro no caminho deterministico (o usuario
         respondeu um codigo). O LLM nunca produz codigo: `EntityTerm` rejeita.
         """
-        query = normalize(term)
+        query = self._builder.build(term)
         if not query:
             return Resolution(status="NOT_FOUND", term=term, entity_type=entity_type)
 
-        alias_hit = self._by_alias(query, entity_type)
+        alias_hit = self._by_alias(normalize(term), entity_type) or self._by_alias(
+            query, entity_type
+        )
         if alias_hit is not None:
             return Resolution(
                 status="FOUND",
