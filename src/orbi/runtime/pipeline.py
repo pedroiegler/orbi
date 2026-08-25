@@ -112,6 +112,11 @@ class OrbiRuntime:
         self._metrics = metrics or TurnMetrics()
         self._clock = clock
 
+    @property
+    def metrics(self) -> TurnMetrics:
+        """Latencia por etapa, taxa de ambiguidade e custo acumulados."""
+        return self._metrics
+
     # --- entrada ---------------------------------------------------------
 
     def handle(self, inbound: InboundMessage) -> TurnOutcome:
@@ -211,6 +216,7 @@ class OrbiRuntime:
             erp_supported_tools=frozenset(tenant_erp.capabilities.supported_tools),
             rate_limit_per_minute=settings_row.rate_limit_per_minute,
             rate_limit_per_day=settings_row.rate_limit_per_day,
+            monthly_query_cap=tenant.monthly_query_cap,
         )
 
         args, prefilled = self._fill_from_slots(dict(envelope.tool_args), spec, turn_context)
@@ -862,6 +868,11 @@ class OrbiRuntime:
     # --- apoio -----------------------------------------------------------
 
     def _check_rate_limits(self, session: Session, subject: PolicySubject) -> ReasonCode | None:
+        """Tres janelas: minuto e dia por usuario, mes por cliente.
+
+        As duas primeiras contem abuso; a terceira e controle de margem — um
+        cliente entusiasmado sozinho dobra a conta de LLM (ORBI.md secao 18).
+        """
         minute = rate_limit.hit(
             session,
             rate_limit.user_scope(subject.tenant_id, subject.user_id),
@@ -879,6 +890,15 @@ class OrbiRuntime:
         )
         if not day.allowed:
             return ReasonCode.RATE_LIMIT_DAY
+
+        month = rate_limit.hit(
+            session,
+            rate_limit.tenant_scope(subject.tenant_id),
+            limit=subject.monthly_query_cap,
+            window_seconds=rate_limit.MONTH,
+        )
+        if not month.allowed:
+            return ReasonCode.PLAN_QUOTA_EXCEEDED
         return None
 
     def _fill_from_slots(

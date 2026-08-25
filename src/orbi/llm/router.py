@@ -72,13 +72,6 @@ class LLMRouter:
                         f"os dois provedores falharam: {primary_error} / {fallback_error}"
                     ) from fallback_error
 
-    @property
-    def providers(self) -> tuple[str, ...]:
-        names = [self.primary.name]
-        if self.fallback is not None:
-            names.append(self.fallback.name)
-        return tuple(names)
-
 
 def build_provider(name: str, settings: Settings | None = None) -> LLMPort:
     resolved = settings or get_settings()

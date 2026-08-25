@@ -46,7 +46,3 @@ class ConsoleChannel:
                 text=str(payload.get("text", "")),
             )
         ]
-
-    @property
-    def last_text(self) -> str | None:
-        return self.sent[-1][1] if self.sent else None

@@ -264,21 +264,61 @@ def discovery(
     tenant: Annotated[str, typer.Option("--tenant", "-t")],
     activate: Annotated[bool, typer.Option("--activate", help="Ativa a versao gerada.")] = False,
     show: Annotated[bool, typer.Option("--show", help="Mostra o modelo ativo.")] = False,
+    export_evals: Annotated[
+        Path | None,
+        typer.Option("--export-evals", help="Grava as seed questions como dataset de eval."),
+    ] = None,
 ) -> None:
     """Discovery offline: mapeia o ERP e gera o Knowledge Model versionado."""
-    from orbi.discovery.run import activate_version, describe_active, run_discovery
+    from orbi.discovery.run import (
+        activate_version,
+        describe_active,
+        run_discovery,
+        seed_questions_of,
+    )
 
     tenant_id = resolve_tenant_id(tenant)
     if show:
         console.print(json.dumps(describe_active(tenant_id), indent=2, ensure_ascii=False))
         return
 
+    if export_evals is not None:
+        # As camadas L1 e L2 do eval nascem junto com o modelo (ORBI.md secao 9).
+        questions = seed_questions_of(tenant_id)
+        if not questions:
+            fail("nenhum modelo ativo com seed questions: rode o discovery e ative")
+        export_evals.write_text(
+            json.dumps({"cases": questions}, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        ok(f"{len(questions)} seed questions exportadas para {export_evals}")
+        return
+
     result = run_discovery(tenant_id)
     ok(f"Knowledge Model v{result.version} gerado ({result.summary()})")
-    console.print("Revise o diff e ative com `--activate`.")
-    if activate:
-        activate_version(tenant_id, result.version)
-        ok(f"versao {result.version} ativa")
+
+    diff_view = table("Diff contra a versao ativa", ["mudanca"])
+    for change in result.changes:
+        diff_view.add_row(change)
+    console.print(diff_view)
+
+    for item in result.report.review_items:
+        warn(f"revisar: {item}")
+    if result.report.review_items:
+        console.print(
+            f"[dim]{result.report.review_ratio:.0%} dos campos precisam de olho humano[/dim]"
+        )
+
+    if not activate:
+        console.print("Revise o diff acima e ative com `--activate`.")
+        return
+
+    if not result.report.approved:
+        for blocker in result.report.blocking:
+            warn(blocker)
+        fail("o Validator reprovou esta versao: corrija antes de ativar", code=3)
+
+    activate_version(tenant_id, result.version)
+    ok(f"versao {result.version} ativa")
 
 
 @app.command("serve")

@@ -12,7 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
@@ -249,7 +249,3 @@ def record_feedback(session: Session, trace_id: str, feedback: str) -> int:
         {"feedback": feedback, "trace_id": trace_id},
     )
     return rows_affected(result)
-
-
-def as_dict(record: AuditRecord) -> dict[str, Any]:
-    return asdict(record)

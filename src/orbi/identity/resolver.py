@@ -197,9 +197,5 @@ def tenant_of(channel: str, address: str) -> TenantIdentity | None:
         return find_tenant(session, channel, address)
 
 
-def describe(tenant: TenantIdentity, user: UserIdentityInfo) -> str:
-    return f"{tenant.slug}/{user.name} ({user.role})"
-
-
 def tenant_row(session: Session, tenant_id: uuid.UUID) -> Tenant | None:
     return session.get(Tenant, tenant_id)

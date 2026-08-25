@@ -7,9 +7,6 @@ CLI (ORBI.md secao 4). O que vive aqui e o que a Meta precisa chamar.
 from __future__ import annotations
 
 import logging
-import threading
-import uuid
-from collections.abc import Callable
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -56,12 +53,22 @@ webhook_router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 @health_router.get("/health")
 def health() -> JSONResponse:
+    """Saude do processo e o que ele mediu desde que subiu.
+
+    Como nao ha painel, este e o lugar onde a operacao le latencia e taxa de
+    ambiguidade sem abrir o banco.
+    """
     settings = get_settings()
     try:
         database_ok = ping(app_engine())
     except Exception:
         database_ok = False
-    payload = {"status": "ok" if database_ok else "degraded", "env": settings.env}
+
+    payload = {
+        "status": "ok" if database_ok else "degraded",
+        "env": settings.env,
+        "turns": dependencies.get_runtime().metrics.snapshot(),
+    }
     code = status.HTTP_200_OK if database_ok else status.HTTP_503_SERVICE_UNAVAILABLE
     return JSONResponse(payload, status_code=code)
 
@@ -116,14 +123,6 @@ async def whatsapp_inbound(
         background.add_task(dispatcher.dispatch, event)
 
     return PlainTextResponse("ok")
-
-
-def run_in_thread(target: Callable[[], None]) -> threading.Thread:
-    """Usado pelo despacho quando nao ha `BackgroundTasks` (CLI e cron)."""
-    thread = threading.Thread(target=target, name=f"orbi-turn-{uuid.uuid4().hex[:6]}")
-    thread.daemon = True
-    thread.start()
-    return thread
 
 
 app = create_app()

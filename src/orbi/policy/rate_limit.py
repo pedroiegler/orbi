@@ -17,6 +17,7 @@ from orbi.db.base import rows_affected
 
 MINUTE = 60
 DAY = 86_400
+MONTH = 2_592_000  # 30 dias
 
 UNKNOWN_SENDER_LIMIT = 3
 UNKNOWN_SENDER_WINDOW = 600
@@ -29,10 +30,6 @@ class RateLimitResult:
     hits: int
     limit: int
     window_seconds: int
-
-    @property
-    def retry_after_seconds(self) -> int:
-        return self.window_seconds
 
 
 def _window_start(now: datetime, window_seconds: int) -> datetime:

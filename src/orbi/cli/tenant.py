@@ -8,11 +8,12 @@ from typing import Annotated
 import typer
 from sqlalchemy import select
 
+from orbi.catalog.sync import deactivate_all
 from orbi.cli.common import console, fail, ok, resolve_tenant_id, table, warn
 from orbi.core.crypto import CredentialCipher
 from orbi.db.models import Tenant, TenantSettings, TenantTool
 from orbi.db.seed import sync_global_config
-from orbi.db.session import admin_session
+from orbi.db.session import admin_session, tenant_session
 from orbi.tools.registry import tool_names
 
 app = typer.Typer(help="Clientes (tenants).", no_args_is_help=True)
@@ -146,8 +147,15 @@ def activate(slug: SlugOption) -> None:
 
 @app.command("deactivate")
 def deactivate(slug: SlugOption) -> None:
-    """Suspende o cliente. As perguntas passam a receber recusa educada."""
+    """Suspende o cliente e desativa o indice de resolucao.
+
+    O catalogo e desativado, nunca apagado: a auditoria referencia esses ids.
+    """
+    tenant_id = resolve_tenant_id(slug)
     _set_status(slug, "suspended")
+    with tenant_session(tenant_id) as session:
+        deactivated = deactivate_all(session, tenant_id)
+    ok(f"{deactivated} itens do catalogo desativados (nada foi apagado)")
 
 
 @app.command("debug")

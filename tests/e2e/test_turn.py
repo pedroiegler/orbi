@@ -214,3 +214,35 @@ def test_admin_sees_every_domain(harness: Harness) -> None:
         outcome = harness.ask(question, sender=ADMIN)
         assert outcome.status == "ok", question
         assert outcome.tool_name == tool
+
+
+# --- teto do plano -------------------------------------------------------
+
+
+def test_plan_quota_is_enforced_not_just_configured(harness: Harness) -> None:
+    """O teto do plano protege a margem, nao so contra abuso (ORBI.md secao 18)."""
+    from sqlalchemy import text as sql
+
+    with tenant_session(harness.tenant_id) as session:
+        session.execute(
+            sql("UPDATE tenants SET monthly_query_cap = 2 WHERE id = :id"),
+            {"id": str(harness.tenant_id)},
+        )
+
+    outcomes = [harness.ask("quanto tem de cimento?") for _ in range(3)]
+
+    assert outcomes[0].status == "ok"
+    assert outcomes[-1].status == "denied"
+    assert outcomes[-1].reason_code == "PLAN_QUOTA_EXCEEDED"
+    assert "limite" in outcomes[-1].text.lower()
+
+
+def test_health_exposes_what_the_process_measured(harness: Harness) -> None:
+    """Sem painel, o /health e onde a operacao le latencia e ambiguidade."""
+    harness.ask("quanto tem de cimento?")
+    harness.ask("quanto tem de tubo pvc?")
+
+    snapshot = harness.runtime.metrics.snapshot()
+    assert snapshot["turns"] >= 2
+    assert snapshot["ambiguity_rate"] > 0
+    assert "erp" in snapshot["stages_p50_ms"]

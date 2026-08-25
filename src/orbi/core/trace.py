@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
-from contextvars import ContextVar, Token
+from contextvars import ContextVar
 
 _TRACE_ID: ContextVar[str | None] = ContextVar("orbi_trace_id", default=None)
 
@@ -21,19 +21,8 @@ def new_trace_id() -> str:
     return str(uuid.uuid4())
 
 
-def set_trace_id(trace_id: str) -> Token[str | None]:
-    return _TRACE_ID.set(trace_id)
-
-
 def get_trace_id() -> str | None:
     return _TRACE_ID.get()
-
-
-def require_trace_id() -> str:
-    trace_id = _TRACE_ID.get()
-    if trace_id is None:
-        raise RuntimeError("nenhum trace_id ativo: use trace_context()")
-    return trace_id
 
 
 def short_code(trace_id: str) -> str:

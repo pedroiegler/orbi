@@ -98,11 +98,3 @@ class DiscoveryOutput(DiscoveryDTO):
     seed_questions: list[SeedQuestion] = Field(default_factory=list)
     abbreviation_candidates: list[AbbreviationCandidate] = Field(default_factory=list)
     tokens_used: int = 0
-
-    def low_confidence_fields(self) -> list[str]:
-        return [
-            f"{entity.erp_model}.{note.name}"
-            for entity in self.surface_map.entities
-            for note in entity.fields
-            if note.needs_review
-        ]

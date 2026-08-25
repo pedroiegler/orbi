@@ -140,29 +140,6 @@ def resolve_choice(
     )
 
 
-def has_open(
-    session: Session,
-    *,
-    tenant_id: uuid.UUID,
-    user_id: uuid.UUID,
-    channel: str,
-    now: datetime | None = None,
-) -> bool:
-    moment = now or datetime.now(UTC)
-    return (
-        session.scalars(
-            select(PendingResolution.id).where(
-                PendingResolution.tenant_id == tenant_id,
-                PendingResolution.user_id == user_id,
-                PendingResolution.channel == channel,
-                PendingResolution.resolved_at.is_(None),
-                PendingResolution.expires_at > moment,
-            )
-        ).first()
-        is not None
-    )
-
-
 def purge_expired(session: Session, *, now: datetime | None = None) -> int:
     moment = now or datetime.now(UTC)
     result = session.execute(

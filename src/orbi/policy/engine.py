@@ -47,6 +47,8 @@ class PolicySubject:
     """`capabilities().supported_tools` do adapter daquele tenant."""
     rate_limit_per_minute: int = 12
     rate_limit_per_day: int = 300
+    monthly_query_cap: int = 5_000
+    """Teto do plano: protege a margem, nao so contra abuso."""
 
 
 RateLimitCheck = Callable[[PolicySubject], ReasonCode | None]

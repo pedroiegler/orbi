@@ -238,8 +238,3 @@ def get_runtime() -> OrbiRuntime:
 @lru_cache(maxsize=1)
 def get_dispatcher() -> TurnDispatcher:
     return TurnDispatcher(get_runtime(), build_notifier())
-
-
-def reset_dependencies() -> None:
-    get_runtime.cache_clear()
-    get_dispatcher.cache_clear()

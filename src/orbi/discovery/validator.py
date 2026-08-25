@@ -47,7 +47,7 @@ def validate(output: DiscoveryOutput) -> ValidationReport:
                 report.high += 1
             elif note.confidence == "medium":
                 report.medium += 1
-            else:
+            elif note.needs_review:
                 report.low += 1
                 report.review_items.append(
                     f"{entity.erp_model}.{note.name}: {note.meaning} — {note.evidence}"

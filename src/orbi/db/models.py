@@ -18,7 +18,6 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Computed,
-    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -331,6 +330,22 @@ class CatalogItem(Base):
         ),
         Index("ix_catalog_tenant_type_active", "tenant_id", "entity_type", "active"),
         Index("ix_catalog_tenant_code", "tenant_id", "code"),
+        # Indices da cascata de resolucao. Declarados aqui, e nao so na
+        # migration, para que `alembic check` compare modelo e banco de verdade.
+        Index(
+            "ix_catalog_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+            postgresql_with={"m": 16, "ef_construction": 64},
+        ),
+        Index(
+            "ix_catalog_canonical_trgm",
+            "canonical_name",
+            postgresql_using="gin",
+            postgresql_ops={"canonical_name": "gin_trgm_ops"},
+        ),
+        Index("ix_catalog_search_text", "search_text", postgresql_using="gin"),
     )
 
 
@@ -375,6 +390,12 @@ class EntityAlias(Base):
         ),
         CheckConstraint("confidence in ('low','confirmed')", name="confidence_valid"),
         Index("ix_entity_aliases_tenant", "tenant_id"),
+        Index(
+            "ix_entity_aliases_alias_trgm",
+            "alias",
+            postgresql_using="gin",
+            postgresql_ops={"alias": "gin_trgm_ops"},
+        ),
     )
 
 
@@ -566,21 +587,6 @@ class EvalRun(Base):
     created_at: Mapped[datetime] = _now()
 
 
-class DailyUsage(Base):
-    """Consolidado por dia para o resumo diario e o teto de consultas do plano."""
-
-    __tablename__ = "daily_usage"
-
-    tenant_id: Mapped[uuid.UUID] = _tenant_fk(primary_key=True)
-    day: Mapped[datetime] = mapped_column(Date, primary_key=True)
-    questions: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    ambiguous: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    not_found: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    errors: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    cost_usd: Mapped[Decimal] = mapped_column(Numeric(10, 6), nullable=False, default=Decimal("0"))
-    updated_at: Mapped[datetime] = _now()
-
-
 TENANT_SCOPED_TABLES: tuple[str, ...] = (
     "tenant_settings",
     "tenant_tools",
@@ -596,6 +602,5 @@ TENANT_SCOPED_TABLES: tuple[str, ...] = (
     "conversation_contexts",
     "audit_logs",
     "corrections",
-    "daily_usage",
 )
 """Tabelas que carregam `tenant_id` e recebem RLS na migration."""

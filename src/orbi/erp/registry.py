@@ -55,12 +55,3 @@ def build_adapter(
 
     ensure_allowed_in_production(name)
     return builder(credentials, config or {})
-
-
-def register_adapter(name: str, builder: AdapterBuilder) -> None:
-    """Usado por testes e por adapters de terceiros durante o desenvolvimento.
-
-    Um adapter so entra no `_BUILDERS` de verdade depois de passar no
-    Conformance Kit (ORBI.md secao 6.11).
-    """
-    _BUILDERS[name] = builder
