@@ -10,7 +10,7 @@ desambiguacao vira um toque em vez de digitar "2".
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Protocol, runtime_checkable
 
@@ -37,7 +37,7 @@ class InboundEvent:
     to_address: str
     text: str
     message_id: str | None = None
-    received_at: datetime = datetime.now(UTC)
+    received_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     kind: str = "text"
     """`text`, `choice` (toque em botao) ou `reaction` (👍/👎)."""
     reaction: str | None = None
