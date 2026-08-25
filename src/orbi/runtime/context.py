@@ -17,6 +17,7 @@ from typing import Any
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from orbi.db.base import rows_affected
 from orbi.db.models import ConversationContext
 
 MAX_TURNS = 5
@@ -175,4 +176,4 @@ def purge_expired(session: Session, *, now: datetime | None = None) -> int:
     result = session.execute(
         delete(ConversationContext).where(ConversationContext.expires_at < moment)
     )
-    return int(result.rowcount or 0)
+    return rows_affected(result)

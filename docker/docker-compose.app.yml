@@ -1,0 +1,82 @@
+# ORBI — producao em uma VPS em Sao Paulo (ORBI.md secao 12).
+#
+# Postgres, aplicacao e cron na mesma maquina. Nada de Redis, fila ou worker:
+# eles entram quando houver gargalo medido, nao por antecipacao.
+name: orbi-app
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
+      POSTGRES_DB: orbi
+    volumes:
+      - orbi-pgdata:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+      - orbi-wal:/wal
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_command=test ! -f /wal/%f && cp %p /wal/%f
+      - -c
+      - archive_timeout=900
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d orbi"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: [../.env]
+    environment:
+      ORBI_DATABASE_ADMIN_URL: postgresql+psycopg://postgres:${POSTGRES_PASSWORD}@postgres:5432/orbi
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    env_file: [../.env]
+    environment:
+      ORBI_DATABASE_URL: postgresql+psycopg://orbi_app:${ORBI_APP_PASSWORD:?defina ORBI_APP_PASSWORD}@postgres:5432/orbi
+      ORBI_DATABASE_ADMIN_URL: postgresql+psycopg://postgres:${POSTGRES_PASSWORD}@postgres:5432/orbi
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  cron:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_started
+    env_file: [../.env]
+    environment:
+      ORBI_DATABASE_URL: postgresql+psycopg://orbi_app:${ORBI_APP_PASSWORD}@postgres:5432/orbi
+      ORBI_DATABASE_ADMIN_URL: postgresql+psycopg://postgres:${POSTGRES_PASSWORD}@postgres:5432/orbi
+    user: root
+    volumes:
+      - ./crontab:/etc/cron.d/orbi:ro
+    command: ["sh", "-c", "cp /etc/cron.d/orbi /tmp/orbi.cron && crontab /tmp/orbi.cron && cron -f"]
+
+volumes:
+  orbi-pgdata:
+  orbi-wal:

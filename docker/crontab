@@ -1,0 +1,22 @@
+# ORBI — rotinas de operacao (ORBI.md secoes 7 e 14).
+# Horarios em UTC; o servidor roda em Sao Paulo (UTC-3).
+SHELL=/bin/sh
+PATH=/opt/venv/bin:/usr/local/bin:/usr/bin:/bin
+
+# Sync completo do catalogo, de madrugada (03:00 em Sao Paulo).
+0 6 * * * orbi tenant list --quiet 2>/dev/null; for t in $(orbi tenant list 2>/dev/null | awk 'NR>3 {print $2}'); do orbi catalog sync --tenant "$t"; done >> /var/log/orbi-sync.log 2>&1
+
+# Incremental a cada 4 horas.
+0 */4 * * * for t in $(orbi tenant list 2>/dev/null | awk 'NR>3 {print $2}'); do orbi catalog sync --tenant "$t" --mode incremental; done >> /var/log/orbi-sync.log 2>&1
+
+# Resumo diario no canal de ops, as 7h de Sao Paulo.
+0 10 * * * orbi maintenance daily-summary --send >> /var/log/orbi-ops.log 2>&1
+
+# Particoes do proximo mes, todo dia 25.
+0 5 25 * * orbi maintenance partitions >> /var/log/orbi-ops.log 2>&1
+
+# Expurgo por retencao, aos domingos.
+30 5 * * 0 orbi maintenance purge --apply >> /var/log/orbi-ops.log 2>&1
+
+# Integridade da corrente de auditoria, toda segunda.
+0 7 * * 1 orbi maintenance verify-audit >> /var/log/orbi-ops.log 2>&1

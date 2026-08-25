@@ -98,8 +98,8 @@ def sync_global_config(session: Session) -> SeedReport:
     session.execute(delete(RoleCapability))
     session.execute(delete(RoleTool))
     for role_code, capabilities in ROLE_CAPABILITIES.items():
-        for capability in sorted(capabilities):
-            session.add(RoleCapability(role_code=role_code, capability_code=capability))
+        for capability_code in sorted(capabilities):
+            session.add(RoleCapability(role_code=role_code, capability_code=capability_code))
         for spec in tools_for_role(role_code):
             session.add(RoleTool(role_code=role_code, tool_name=spec.name))
             report.role_tools += 1
@@ -112,10 +112,10 @@ def sync_global_config(session: Session) -> SeedReport:
         if tool.name not in known:
             tool.active = False
 
-    unknown_capabilities = set(CAPABILITY_LABELS) - set(ALL_CAPABILITIES)
-    if unknown_capabilities:
+    unknown: set[str] = set(CAPABILITY_LABELS) - set(ALL_CAPABILITIES)
+    if unknown:
         raise RuntimeError(
-            f"capabilities documentadas sem declaracao no registry: {unknown_capabilities}"
+            f"capabilities documentadas sem declaracao no registry: {unknown}"
         )
 
     return report

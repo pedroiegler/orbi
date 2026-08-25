@@ -16,6 +16,7 @@ from typing import Any
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from orbi.db.base import rows_affected
 from orbi.db.models import PendingResolution
 from orbi.resolution.resolver import Candidate
 
@@ -167,4 +168,4 @@ def purge_expired(session: Session, *, now: datetime | None = None) -> int:
     result = session.execute(
         delete(PendingResolution).where(PendingResolution.expires_at < moment)
     )
-    return int(result.rowcount or 0)
+    return rows_affected(result)

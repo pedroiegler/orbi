@@ -60,22 +60,23 @@ def day(value: Any, timezone: str = DEFAULT_TIMEZONE) -> str:
         return value.strftime("%d/%m/%Y")
     if isinstance(value, str) and value:
         try:
-            return datetime.fromisoformat(value).strftime("%d/%m/%Y")
+            return str(datetime.fromisoformat(value).strftime("%d/%m/%Y"))
         except ValueError:
             return value
     return "-"
 
 
 def moment(value: Any, timezone: str = DEFAULT_TIMEZONE) -> str:
+    parsed: Any = value
     if isinstance(value, str) and value:
         try:
-            value = datetime.fromisoformat(value)
+            parsed = datetime.fromisoformat(value)
         except ValueError:
             return value
-    if isinstance(value, datetime):
-        stamp = value if value.tzinfo else value.replace(tzinfo=ZoneInfo(timezone))
+    if isinstance(parsed, datetime):
+        stamp = parsed if parsed.tzinfo else parsed.replace(tzinfo=ZoneInfo(timezone))
         return stamp.astimezone(ZoneInfo(timezone)).strftime("%d/%m/%Y %H:%M")
-    return day(value, timezone)
+    return day(parsed, timezone)
 
 
 def plural(count: Any, singular: str, many: str) -> str:

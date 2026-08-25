@@ -68,13 +68,13 @@ class MemoryAdapter:
     def _product(self, product_id: str) -> dict[str, Any]:
         for item in self._data["products"]:
             if str(item["id"]) == str(product_id):
-                return item
+                return dict(item)
         raise ErpNotFound(f"produto {product_id} nao existe", adapter=self.name)
 
     def _customer(self, customer_id: str) -> dict[str, Any]:
         for item in self._data["customers"]:
             if str(item["id"]) == str(customer_id):
-                return item
+                return dict(item)
         raise ErpNotFound(f"cliente {customer_id} nao existe", adapter=self.name)
 
     # --- contrato --------------------------------------------------------

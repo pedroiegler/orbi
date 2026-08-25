@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
+from typing import NoReturn
 
 import typer
 from rich.console import Console
@@ -26,7 +27,8 @@ def warn(message: str) -> None:
     console.print(f"[yellow]![/yellow] {message}")
 
 
-def fail(message: str, code: int = 1) -> None:
+def fail(message: str, code: int = 1) -> NoReturn:
+    """Encerra o comando. Nunca retorna — o tipo diz isso ao verificador."""
     console.print(f"[red]✗[/red] {message}")
     raise typer.Exit(code)
 

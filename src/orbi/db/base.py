@@ -77,4 +77,9 @@ AppSessionFactory = sessionmaker[Session]
 
 def ping(engine: Engine) -> bool:
     with engine.connect() as conn:
-        return conn.execute(text("SELECT 1")).scalar_one() == 1
+        return bool(conn.execute(text("SELECT 1")).scalar_one() == 1)
+
+
+def rows_affected(result: Any) -> int:
+    """`rowcount` so existe no `CursorResult`; a tipagem generica nao o expoe."""
+    return int(getattr(result, "rowcount", 0) or 0)

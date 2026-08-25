@@ -20,6 +20,8 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from orbi.db.base import rows_affected
+
 ANONYMIZED_TEXT = "[anonimizado]"
 
 
@@ -234,7 +236,7 @@ def erase_user_data(session: Session, tenant_id: str, user_id: str) -> int:
         ),
         {"anonymized": ANONYMIZED_TEXT, "tenant_id": tenant_id, "user_id": user_id},
     )
-    return int(result.rowcount or 0)
+    return rows_affected(result)
 
 
 def record_feedback(session: Session, trace_id: str, feedback: str) -> int:
@@ -246,7 +248,7 @@ def record_feedback(session: Session, trace_id: str, feedback: str) -> int:
         text("UPDATE audit_logs SET feedback = :feedback WHERE trace_id = :trace_id"),
         {"feedback": feedback, "trace_id": trace_id},
     )
-    return int(result.rowcount or 0)
+    return rows_affected(result)
 
 
 def as_dict(record: AuditRecord) -> dict[str, Any]:

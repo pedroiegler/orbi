@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import threading
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 
@@ -29,6 +30,9 @@ logger = logging.getLogger(__name__)
 
 FEEDBACK_WINDOW = timedelta(hours=6)
 
+ChannelFactory = Callable[[str, str], "ChannelPort | None"]
+"""(canal, numero de destino) → canal do tenant, ou None quando nao configurado."""
+
 
 class TurnDispatcher:
     """Recebe evento do canal, roda o turno e responde."""
@@ -39,7 +43,7 @@ class TurnDispatcher:
         ops: OpsNotifier,
         *,
         renderer: ResultRenderer | None = None,
-        channel_factory: object | None = None,
+        channel_factory: ChannelFactory | None = None,
     ) -> None:
         self._runtime = runtime
         self._ops = ops

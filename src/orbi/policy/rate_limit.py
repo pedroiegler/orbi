@@ -13,6 +13,8 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from orbi.db.base import rows_affected
+
 MINUTE = 60
 DAY = 86_400
 
@@ -87,7 +89,7 @@ def purge_expired(session: Session, older_than_seconds: int = DAY * 2) -> int:
         text("DELETE FROM rate_limit_counters WHERE window_started_at < :cutoff"),
         {"cutoff": cutoff},
     )
-    return int(result.rowcount or 0)
+    return rows_affected(result)
 
 
 def user_scope(tenant_id: str, user_id: str) -> str:

@@ -25,6 +25,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from orbi.catalog.firewall import inspect
+from orbi.db.base import rows_affected
 from orbi.db.models import CatalogAbbreviation, CatalogItem, CatalogSyncRun
 from orbi.erp.port import CatalogItem as ErpCatalogItem
 from orbi.resolution.canonical import CanonicalNameBuilder
@@ -275,4 +276,4 @@ def deactivate_all(session: Session, tenant_id: uuid.UUID | str) -> int:
         .where(CatalogItem.tenant_id == uuid.UUID(str(tenant_id)))
         .values(active=False)
     )
-    return int(result.rowcount or 0)
+    return rows_affected(result)

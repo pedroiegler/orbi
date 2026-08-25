@@ -57,14 +57,14 @@ class _TimeoutTransport(xmlrpc.client.Transport):
         self._use_https = use_https
 
     def make_connection(self, host: Any) -> http.client.HTTPConnection:
-        if self._connection and host == self._connection[0]:
-            return self._connection[1]
-        chost, self._extra_headers, x509 = self.get_host_info(host)
+        cached = self._connection
+        if cached is not None and cached[1] is not None and host == cached[0]:
+            return cached[1]
+
+        chost, self._extra_headers, _x509 = self.get_host_info(host)
         connection: http.client.HTTPConnection
         if self._use_https:
-            connection = http.client.HTTPSConnection(
-                chost, None, timeout=self.timeout, **(x509 or {})
-            )
+            connection = http.client.HTTPSConnection(chost, timeout=self.timeout)
         else:
             connection = http.client.HTTPConnection(chost, timeout=self.timeout)
         self._connection = host, connection
