@@ -31,6 +31,18 @@ def available_adapters() -> tuple[str, ...]:
     return tuple(sorted(_BUILDERS))
 
 
+def ensure_allowed_in_production(name: str) -> None:
+    """Recusa adapter de desenvolvimento fora de desenvolvimento.
+
+    Fica aqui, e nao em quem chama, porque este e o unico modulo que tem o
+    direito de conhecer nomes de ERP (proibicao P10).
+    """
+    if name in DEV_ONLY_ADAPTERS and get_settings().is_production:
+        raise ConfigurationError(
+            f"adapter '{name}' e de desenvolvimento e nao pode ser usado em producao"
+        )
+
+
 def build_adapter(
     name: str, credentials: dict[str, Any], config: dict[str, Any] | None = None
 ) -> ErpAdapter:
@@ -41,11 +53,7 @@ def build_adapter(
             f"adapter desconhecido: {name}. Disponiveis: {', '.join(available_adapters())}"
         ) from None
 
-    if name in DEV_ONLY_ADAPTERS and get_settings().is_production:
-        raise ConfigurationError(
-            f"adapter '{name}' e de desenvolvimento e nao pode ser usado em producao"
-        )
-
+    ensure_allowed_in_production(name)
     return builder(credentials, config or {})
 
 

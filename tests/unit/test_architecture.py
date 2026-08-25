@@ -1,0 +1,262 @@
+"""Proibicoes escritas como teste (docs/ORBI-CONVENCOES.md).
+
+Documento nao segura arquitetura; teste segura. Cada teste aqui corresponde a
+uma proibicao numerada, e falhar aqui significa que uma decisao do projeto foi
+desfeita sem passar pela decisao.
+"""
+
+from __future__ import annotations
+
+import ast
+import re
+from pathlib import Path
+
+import pytest
+
+from orbi.tools.registry import FORBIDDEN_TOOL_PATTERNS, all_tools, tool_names
+
+SRC = Path(__file__).resolve().parents[2] / "src" / "orbi"
+
+CORE_PACKAGES = {"core", "db", "tools"}
+"""Camadas de baixo: nao podem importar camadas de cima."""
+
+UPPER_PACKAGES = {"runtime", "api", "cli", "channel", "erp", "llm", "render", "policy"}
+
+
+def _modules() -> list[Path]:
+    return sorted(SRC.rglob("*.py"))
+
+
+def _imports(path: Path) -> list[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    found: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            found.extend(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            found.append(node.module)
+    return found
+
+
+# --- P6: a sessao e a unica porta -----------------------------------------
+
+
+def test_only_the_session_module_touches_the_engine() -> None:
+    """P6/D-005: o engine so pode ser usado por quem emite `SET LOCAL`."""
+    allowed = {"db/base.py", "db/session.py", "api/app.py", "cli/main.py"}
+    offenders: list[str] = []
+
+    for path in _modules():
+        relative = str(path.relative_to(SRC))
+        if relative in allowed:
+            continue
+        source = path.read_text(encoding="utf-8")
+        if "app_engine(" in source or "create_engine(" in source:
+            offenders.append(relative)
+
+    assert offenders == [], (
+        "estes modulos usam o engine direto em vez de `tenant_session`: " f"{offenders}"
+    )
+
+
+def test_admin_session_is_not_used_in_the_request_path() -> None:
+    """A sessao administrativa e de operacao, nunca do turno."""
+    request_path = ["runtime/pipeline.py", "identity/resolver.py", "policy/engine.py"]
+    for relative in request_path:
+        source = (SRC / relative).read_text(encoding="utf-8")
+        assert "admin_session" not in source, f"{relative} usa sessao administrativa"
+
+
+# --- P10: nada de `if erp == x` no Core -----------------------------------
+
+
+def test_core_never_imports_a_concrete_adapter() -> None:
+    """P10: diferenca de ERP vive no Adapter + `capabilities()`."""
+    offenders: list[str] = []
+    for path in _modules():
+        relative = str(path.relative_to(SRC))
+        if relative.startswith(("erp/adapters/", "erp/registry.py")):
+            continue
+        for module in _imports(path):
+            if module.startswith("orbi.erp.adapters"):
+                offenders.append(f"{relative} → {module}")
+    assert offenders == [], f"Core importando adapter concreto: {offenders}"
+
+
+def test_no_module_branches_on_the_erp_name() -> None:
+    """Comentario que cita a regra nao conta: o teste olha o codigo."""
+    pattern = re.compile(r"""(?i)\b(if|elif)\b[^\n]*\b(adapter|erp)\b\s*==\s*['"]""")
+    offenders: list[str] = []
+    for path in _modules():
+        relative = str(path.relative_to(SRC))
+        if relative.startswith(("erp/adapters/", "erp/registry.py")):
+            continue
+        for line_number, line in enumerate(_code_lines(path), 1):
+            if pattern.search(line):
+                offenders.append(f"{relative}:{line_number}")
+    assert offenders == [], f"condicional por ERP fora do adapter: {offenders}"
+
+
+def _code_lines(path: Path) -> list[str]:
+    """Linhas de codigo, sem docstring nem comentario."""
+    source = path.read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    docstring_lines: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            doc = ast.get_docstring(node, clean=False)
+            if doc is None:
+                continue
+            first = node.body[0]
+            docstring_lines.update(range(first.lineno, (first.end_lineno or first.lineno) + 1))
+        elif isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant):
+            if isinstance(node.value.value, str):
+                docstring_lines.update(range(node.lineno, (node.end_lineno or node.lineno) + 1))
+
+    return [
+        "" if number in docstring_lines or line.strip().startswith("#") else line
+        for number, line in enumerate(source.splitlines(), 1)
+    ]
+
+
+# --- dependencia entre camadas -------------------------------------------
+
+
+def test_lower_layers_do_not_import_upper_layers() -> None:
+    offenders: list[str] = []
+    for path in _modules():
+        relative = path.relative_to(SRC)
+        package = relative.parts[0] if len(relative.parts) > 1 else ""
+        if package not in CORE_PACKAGES:
+            continue
+        for module in _imports(path):
+            if not module.startswith("orbi."):
+                continue
+            target = module.split(".")[1]
+            if target in UPPER_PACKAGES:
+                offenders.append(f"{relative} → {module}")
+    assert offenders == [], f"camada de baixo importando camada de cima: {offenders}"
+
+
+# --- P1: sem tool de busca ------------------------------------------------
+
+
+def test_no_entity_search_tool_can_be_registered() -> None:
+    for name in tool_names():
+        for pattern in FORBIDDEN_TOOL_PATTERNS:
+            assert pattern not in name, f"tool de busca detectada: {name}"
+
+
+# --- P2: o LLM nao redige -------------------------------------------------
+
+
+def test_llm_rendering_is_off_by_default() -> None:
+    from orbi.core.settings import Settings
+
+    assert Settings().llm_rendering_enabled is False
+
+
+def test_the_renderer_does_not_import_the_llm() -> None:
+    """P2: a resposta e template. O renderer nem conhece o provedor."""
+    for path in (SRC / "render").rglob("*.py"):
+        for module in _imports(path):
+            assert not module.startswith("orbi.llm"), f"{path.name} importa o LLM"
+
+
+def test_the_erp_result_never_goes_back_to_the_llm() -> None:
+    """Segunda barreira contra injecao: o dado do ERP nao volta ao modelo."""
+    pipeline = (SRC / "runtime" / "pipeline.py").read_text(encoding="utf-8")
+    after_erp = pipeline.split("_call_erp", 1)[-1]
+    assert "self._llm.complete" not in after_erp
+
+
+# --- P3: sem cache de estoque ---------------------------------------------
+
+
+def test_no_cache_in_the_erp_path() -> None:
+    """P3/D-009: melhor nao responder do que responder errado sobre quantidade."""
+    offenders: list[str] = []
+    for relative in ("erp/gateway.py", "runtime/pipeline.py"):
+        source = (SRC / relative).read_text(encoding="utf-8")
+        for number, line in enumerate(source.splitlines(), 1):
+            lowered = line.lower()
+            if "lru_cache" in lowered or "@cache" in lowered:
+                offenders.append(f"{relative}:{number}")
+    assert offenders == [], f"cache no caminho do ERP: {offenders}"
+
+
+# --- P12: somente leitura -------------------------------------------------
+
+
+def test_no_adapter_exposes_a_write_method() -> None:
+    from orbi.erp.port import WRITE_METHOD_PREFIXES
+
+    for path in (SRC / "erp").rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef):
+                assert not node.name.startswith(WRITE_METHOD_PREFIXES), (
+                    f"{path.name}.{node.name} parece escrita no ERP"
+                )
+
+
+# --- P9: PII mascarada ----------------------------------------------------
+
+
+def test_every_llm_request_is_built_by_the_prompt_builder() -> None:
+    """P9: o `PromptBuilder` e o unico lugar que monta `LLMRequest`."""
+    offenders: list[str] = []
+    for path in _modules():
+        relative = str(path.relative_to(SRC))
+        if relative in {"llm/prompt.py", "llm/port.py"}:
+            continue
+        source = path.read_text(encoding="utf-8")
+        if re.search(r"\bLLMRequest\(", source):
+            offenders.append(relative)
+    assert offenders == [], f"LLMRequest montado fora do PromptBuilder: {offenders}"
+
+
+# --- Tool Registry: os cinco artefatos ------------------------------------
+
+
+def test_tool_spec_artifacts_are_in_sync() -> None:
+    """Um teste de CI falha se algum artefato do `ToolSpec` dessincronizar."""
+    from orbi.evals.runner import load_dataset
+    from orbi.policy.field_policy import FIELD_POLICY
+    from orbi.render.renderer import TEMPLATES_DIR
+
+    for spec in all_tools():
+        assert spec.json_schema()["input_schema"]["properties"], f"{spec.name} sem argumentos"
+        assert spec.args_model is not None
+        assert (TEMPLATES_DIR / spec.template).exists(), f"{spec.name} sem template"
+        assert load_dataset(spec.eval_fixture), f"{spec.name} sem fixture de eval"
+        roles = {role for (role, tool) in FIELD_POLICY if tool == spec.name}
+        assert roles, f"{spec.name} sem whitelist de campos"
+
+
+def test_registered_tools_match_the_database_seed() -> None:
+    from orbi.db.seed import ROLE_LABELS
+    from orbi.tools.registry import ROLE_CAPABILITIES
+
+    assert set(ROLE_LABELS) == set(ROLE_CAPABILITIES)
+
+
+# --- segredos -------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "pattern",
+    [
+        r"(?i)api[_-]?key\s*=\s*['\"][A-Za-z0-9_\-]{16,}['\"]",
+        r"(?i)password\s*=\s*['\"](?!change-me|orbi-dev|)[A-Za-z0-9_\-]{12,}['\"]",
+        r"sk-[A-Za-z0-9]{20,}",
+    ],
+)
+def test_no_secret_looking_literal_in_the_source(pattern: str) -> None:
+    compiled = re.compile(pattern)
+    offenders = [
+        str(path.relative_to(SRC))
+        for path in _modules()
+        if compiled.search(path.read_text(encoding="utf-8"))
+    ]
+    assert offenders == [], f"literal com cara de segredo: {offenders}"

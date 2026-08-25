@@ -16,11 +16,10 @@ from sqlalchemy.orm import Session
 
 from orbi.core.crypto import CredentialCipher
 from orbi.core.errors import ConfigurationError
-from orbi.core.settings import get_settings
 from orbi.db.models import ErpConnection, TenantTool
 from orbi.erp.gateway import ErpGateway, OnCircuitOpen
 from orbi.erp.port import Capabilities, ErpAdapter
-from orbi.erp.registry import build_adapter
+from orbi.erp.registry import build_adapter, ensure_allowed_in_production
 from orbi.tools.registry import tool_names
 
 CAPABILITIES_TTL = timedelta(hours=12)
@@ -151,8 +150,7 @@ def store_credentials(
 ) -> ErpConnection:
     """Grava a credencial cifrada. O valor em claro nunca toca o banco."""
     resolved_cipher = cipher or CredentialCipher()
-    if get_settings().is_production and adapter == "memory":
-        raise ConfigurationError("adapter 'memory' nao pode ser usado em producao")
+    ensure_allowed_in_production(adapter)
 
     existing = session.scalars(
         select(ErpConnection).where(
