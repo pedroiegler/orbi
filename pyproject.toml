@@ -1,0 +1,88 @@
+[project]
+name = "orbi"
+version = "0.1.0"
+description = "Camada de linguagem natural sobre ERPs — o LLM interpreta, o codigo autoriza, executa e redige."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+authors = [{ name = "Orbi" }]
+
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "pydantic>=2.10",
+    "pydantic-settings>=2.7",
+    "sqlalchemy>=2.0.36",
+    "psycopg[binary]>=3.2",
+    "pgvector>=0.3.6",
+    "alembic>=1.14",
+    "typer>=0.15",
+    "rich>=13.9",
+    "jinja2>=3.1",
+    "httpx>=0.28",
+    "cryptography>=44.0",
+    "python-dateutil>=2.9",
+]
+
+[project.optional-dependencies]
+llm = [
+    "anthropic>=0.45",
+    "openai>=1.60",
+]
+discovery = [
+    "crewai>=0.100",
+]
+observability = [
+    "langfuse>=2.57",
+]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "pytest-asyncio>=0.25",
+    "ruff>=0.9",
+    "mypy>=1.14",
+    "types-python-dateutil",
+]
+
+[project.scripts]
+orbi = "orbi.cli.main:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/orbi"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q --strict-markers"
+markers = [
+    "integration: requires a live PostgreSQL database",
+    "e2e: full turn, end to end",
+    "conformance: adapter conformance kit",
+    "odoo: requires a live Odoo instance",
+    "evals: eval layers L1-L5",
+]
+filterwarnings = ["error::DeprecationWarning:orbi.*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "C4", "RUF"]
+ignore = ["B008", "RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "src"
+packages = ["orbi"]
+ignore_missing_imports = true
+warn_unused_ignores = false

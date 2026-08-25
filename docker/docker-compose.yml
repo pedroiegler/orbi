@@ -1,0 +1,27 @@
+# ORBI — ambiente de desenvolvimento.
+# Postgres com pgvector e pg_trgm. Odoo e Langfuse ficam em arquivos separados
+# para nao subir junto do que o Runtime precisa.
+name: orbi
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: orbi-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orbi-dev}
+      POSTGRES_DB: orbi
+    ports:
+      - "5433:5432"
+    volumes:
+      - orbi-pgdata:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d orbi"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  orbi-pgdata:
