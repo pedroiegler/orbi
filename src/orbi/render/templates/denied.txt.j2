@@ -1,0 +1,20 @@
+{#- Negacao da Policy Layer. Mensagem por reason_code, sem detalhe tecnico. -#}
+{% if reason_code == 'TOOL_NOT_ALLOWED_FOR_ROLE' %}
+Essa consulta não faz parte do seu acesso. Fale com o responsável na sua empresa.
+{% elif reason_code == 'TOOL_DISABLED_FOR_TENANT' or reason_code == 'TOOL_NOT_SUPPORTED_BY_ERP' %}
+Essa consulta ainda não está disponível para a sua empresa.
+{% elif reason_code == 'TENANT_INACTIVE' %}
+O acesso da sua empresa está suspenso no momento.
+{% elif reason_code == 'USER_INACTIVE' %}
+Seu acesso está inativo. Fale com o responsável na sua empresa.
+{% elif reason_code == 'USER_NEEDS_REVERIFICATION' %}
+Preciso confirmar seu número novamente antes de responder. Já avisei a equipe.
+{% elif reason_code == 'RATE_LIMIT_MINUTE' %}
+Muitas perguntas em sequência. Tenta de novo em um minuto.
+{% elif reason_code == 'RATE_LIMIT_DAY' or reason_code == 'PLAN_QUOTA_EXCEEDED' %}
+O limite de consultas do dia foi atingido.
+{% elif reason_code == 'ARGS_CONTAIN_IDENTIFIER' %}
+Me diz o nome do produto ou do cliente em palavras, do jeito que você fala.
+{% else %}
+Não consegui entender essa consulta. Pode repetir com outras palavras?
+{% endif %}

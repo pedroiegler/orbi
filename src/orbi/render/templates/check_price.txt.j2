@@ -1,0 +1,14 @@
+{#- Preco. Custo e margem so aparecem se a Field Policy tiver deixado passar. -#}
+{% set label = name ~ (' (' ~ code ~ ')' if code is defined and code else '') %}
+{% set who = (' · ' ~ customer_name) if (customer_name is defined and customer_name) else '' %}
+{{ label }} — {{ unit_price | money(currency) }} / {{ uom }}{{ who }}
+{% if discount_percent is defined and discount_percent %}
+Desconto de tabela do cliente: {{ discount_percent | number }}%
+{% endif %}
+{% if quantity is defined and quantity and total is defined and total %}
+{{ quantity | number }} {{ uom }} = {{ total | money(currency) }}
+{% endif %}
+{% if unit_cost is defined %}
+{% set margin = (' · margem ' ~ (margin_percent | number(1)) ~ '%') if margin_percent is defined and margin_percent else '' %}
+Custo {{ unit_cost | money(currency) }}{{ margin }}
+{% endif %}
