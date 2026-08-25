@@ -260,3 +260,29 @@ def test_no_secret_looking_literal_in_the_source(pattern: str) -> None:
         if compiled.search(path.read_text(encoding="utf-8"))
     ]
     assert offenders == [], f"literal com cara de segredo: {offenders}"
+
+
+# --- a suite nunca pode destruir um banco que nao seja de teste ------------
+
+
+def test_the_suite_refuses_a_non_test_database(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A suite recria o schema: apontar para o banco errado tem que abortar."""
+    from tests.conftest import guard_target_database
+
+    monkeypatch.setenv(
+        "ORBI_DATABASE_ADMIN_URL", "postgresql+psycopg://postgres:x@localhost:5433/orbi"
+    )
+    with pytest.raises(pytest.UsageError, match="nao e de teste"):
+        guard_target_database()
+
+
+def test_the_suite_accepts_the_test_database(monkeypatch: pytest.MonkeyPatch) -> None:
+    from tests.conftest import guard_target_database
+
+    monkeypatch.setenv(
+        "ORBI_DATABASE_ADMIN_URL", "postgresql+psycopg://postgres:x@localhost:5433/orbi_test"
+    )
+    monkeypatch.setenv(
+        "ORBI_DATABASE_URL", "postgresql+psycopg://orbi_app:x@localhost:5433/orbi_test"
+    )
+    guard_target_database()

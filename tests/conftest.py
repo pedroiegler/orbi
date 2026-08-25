@@ -129,9 +129,36 @@ def _admin_dsn_root() -> str:
     return url.rsplit("/", 1)[0]
 
 
+def _database_name(url: str) -> str:
+    return url.rsplit("/", 1)[-1].split("?", 1)[0]
+
+
+ALLOWED_TEST_DATABASES = (TEST_DB_NAME, "orbi_ci")
+"""Nomes que a suite pode destruir. Qualquer outro aborta a execucao."""
+
+
+def guard_target_database() -> None:
+    """A suite recria o schema do zero: precisa provar que o alvo e de teste.
+
+    Sem esta guarda, exportar `ORBI_DATABASE_ADMIN_URL` apontando para o banco de
+    desenvolvimento — ou pior — e rodar `pytest` apaga o schema inteiro. Aconteceu
+    uma vez durante a construcao; nao pode acontecer de novo.
+    """
+    for variable in ("ORBI_DATABASE_ADMIN_URL", "ORBI_DATABASE_URL"):
+        name = _database_name(os.environ[variable])
+        if name not in ALLOWED_TEST_DATABASES:
+            raise pytest.UsageError(
+                f"{variable} aponta para o banco '{name}', que nao e de teste. "
+                f"A suite recria o schema do zero e so aceita: "
+                f"{', '.join(ALLOWED_TEST_DATABASES)}. "
+                "Rode `pytest` sem exportar essas variaveis."
+            )
+
+
 @pytest.fixture(scope="session")
 def database() -> Iterator[None]:
     """Cria e migra o banco de teste. Pula a suite quando nao ha Postgres."""
+    guard_target_database()
     if not _postgres_available():
         pytest.skip("PostgreSQL indisponivel: suba com docker/docker-compose.yml")
 

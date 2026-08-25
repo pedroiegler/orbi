@@ -163,3 +163,8 @@ As anteriores vieram do projeto. Estas vieram de bater no problema.
 - **Contexto:** HNSW e GIN trigram existiam só na migration; `alembic check` queria removê-los.
 - **Escolha:** declarados também no modelo, com `postgresql_using` e `postgresql_ops`.
 - **Motivo:** `alembic check` no CI só vale se modelo e banco descreverem a mesma coisa.
+
+## D-031 · A suíte recusa banco que não seja de teste (2026-08-25)
+- **Contexto:** o `conftest` recria o schema do zero; apontar `ORBI_DATABASE_ADMIN_URL` para o banco de desenvolvimento e rodar `pytest` apaga tudo. Aconteceu uma vez durante a construção.
+- **Escolha:** a suíte aborta com `UsageError` quando o nome do banco não está na lista de bancos de teste.
+- **Motivo:** o custo de errar é destruir dados de produção; o custo da guarda é uma linha de verificação.
