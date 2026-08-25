@@ -18,5 +18,8 @@ PATH=/opt/venv/bin:/usr/local/bin:/usr/bin:/bin
 # Expurgo por retencao, aos domingos.
 30 5 * * 0 orbi maintenance purge --apply >> /var/log/orbi-ops.log 2>&1
 
+# Shadow evals: 5% das perguntas do dia contra o prompt atual, de madrugada.
+30 4 * * * orbi maintenance shadow-evals >> /var/log/orbi-ops.log 2>&1
+
 # Integridade da corrente de auditoria, toda segunda.
 0 7 * * 1 orbi maintenance verify-audit >> /var/log/orbi-ops.log 2>&1

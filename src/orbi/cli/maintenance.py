@@ -153,6 +153,48 @@ def verify_audit(
         raise typer.Exit(2)
 
 
+@app.command("shadow-evals")
+def shadow_evals(
+    tenant: Annotated[str, typer.Option("--tenant", "-t", help="Vazio = todos.")] = "",
+    days: Annotated[int, typer.Option("--days", help="Janela de perguntas reais.")] = 1,
+    alert_below: Annotated[
+        float, typer.Option("--alert-below", help="Concordancia minima antes de alertar.")
+    ] = 0.9,
+) -> None:
+    """Reexecuta 5% das perguntas reais contra o prompt atual.
+
+    A regressao aparece antes do usuario. Nenhuma chamada ao ERP e nenhuma PII
+    sai daqui — o shadow compara escolha de tool e argumentos.
+    """
+    from orbi.evals.shadow import run_shadow
+
+    notifier = build_notifier()
+    with admin_session() as session:
+        tenants = session.scalars(select(Tenant).where(Tenant.status == "active")).all()
+        selected = [(t.id, t.slug) for t in tenants if not tenant or t.slug == tenant]
+
+    if not selected:
+        fail("nenhum tenant ativo encontrado")
+
+    view = table("Shadow evals", ["cliente", "amostra", "tool igual", "argumentos iguais"])
+    for tenant_id, slug in selected:
+        result = run_shadow(tenant_id, slug, days=days)
+        view.add_row(
+            slug,
+            str(result.sampled),
+            f"{result.tool_agreement:.0%}",
+            f"{result.args_agreement:.0%}",
+        )
+        for divergence in result.divergences[:5]:
+            warn(f"{slug}: {divergence}")
+        if result.sampled and result.tool_agreement < alert_below:
+            notifier.alert(
+                "regressao no shadow eval",
+                f"{slug}: concordancia de tool em {result.tool_agreement:.0%}",
+            )
+    console.print(view)
+
+
 @app.command("recalibrate")
 def recalibrate(
     tenant: Annotated[str, typer.Option("--tenant", "-t")],

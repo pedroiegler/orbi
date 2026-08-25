@@ -33,7 +33,7 @@ discovery = [
     "crewai>=0.100",
 ]
 observability = [
-    "langfuse>=2.57",
+    "langfuse>=4.0",
 ]
 dev = [
     "pytest>=8.3",

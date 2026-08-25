@@ -35,6 +35,7 @@ from orbi.llm.port import ToolCallEnvelope
 from orbi.llm.prompt import PromptBuilder, PromptContext
 from orbi.llm.router import LLMRouter
 from orbi.observability.metrics import TurnMetrics
+from orbi.observability.tracing import TracePort, build_tracer
 from orbi.policy import field_policy, rate_limit
 from orbi.policy.decision import PolicyDecision, ReasonCode
 from orbi.policy.engine import PolicySubject, evaluate
@@ -70,6 +71,7 @@ class TurnOutcome:
     tenant_slug: str | None = None
     tenant_id: uuid.UUID | None = None
     user_id: uuid.UUID | None = None
+    role: str | None = None
     tool_name: str | None = None
     reason_code: str | None = None
     entity: dict[str, Any] | None = None
@@ -101,6 +103,7 @@ class OrbiRuntime:
         prompt_builder: PromptBuilder | None = None,
         on_alert: OpsAlert | None = None,
         metrics: TurnMetrics | None = None,
+        tracer: TracePort | None = None,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self._llm = llm
@@ -110,6 +113,7 @@ class OrbiRuntime:
         self._prompts = prompt_builder or PromptBuilder()
         self._alert = on_alert or (lambda subject, detail: None)
         self._metrics = metrics or TurnMetrics()
+        self._tracer = tracer or build_tracer(self._settings)
         self._clock = clock
 
     @property
@@ -141,6 +145,8 @@ class OrbiRuntime:
                 )
                 self._alert("configuracao invalida", str(exc))
             self._metrics.record(outcome)
+            # Mesmo trace_id da auditoria: um relato vira investigacao em segundos.
+            self._tracer.record_turn(outcome, inbound.text, outcome.role or "desconhecido")
             return outcome
 
     # --- fluxo -----------------------------------------------------------
@@ -440,6 +446,7 @@ class OrbiRuntime:
             tenant_slug=tenant.slug,
             tenant_id=tenant.id,
             user_id=user.user_id,
+            role=user.role,
             tool_name=spec.name,
             entity=entity,
             latencies_ms=dict(deadline.stage_latencies_ms),
@@ -532,6 +539,7 @@ class OrbiRuntime:
             tenant_slug=tenant.slug,
             tenant_id=tenant.id,
             user_id=user.user_id,
+            role=user.role,
             tool_name=spec.name,
             entity=entity_dict,
             latencies_ms=dict(deadline.stage_latencies_ms),
@@ -683,6 +691,7 @@ class OrbiRuntime:
             tenant_slug=tenant.slug,
             tenant_id=tenant.id,
             user_id=user.user_id,
+            role=user.role,
             tool_name=spec.name,
             options=tuple(options),
             latencies_ms=dict(deadline.stage_latencies_ms),
@@ -730,6 +739,7 @@ class OrbiRuntime:
             tenant_slug=tenant.slug,
             tenant_id=tenant.id,
             user_id=user.user_id,
+            role=user.role,
             tool_name=spec.name,
             latencies_ms=dict(deadline.stage_latencies_ms),
             provider=envelope.provider or None,
@@ -765,6 +775,7 @@ class OrbiRuntime:
             tenant_slug=tenant.slug,
             tenant_id=tenant.id,
             user_id=user.user_id,
+            role=user.role,
             tool_name=spec.name,
             reason_code=reason,
             latencies_ms=dict(deadline.stage_latencies_ms),
@@ -820,6 +831,7 @@ class OrbiRuntime:
             tenant_slug=tenant.slug,
             tenant_id=tenant.id,
             user_id=user.user_id,
+            role=user.role,
             latencies_ms=dict(deadline.stage_latencies_ms),
             provider=envelope.provider if envelope else None,
         )
@@ -860,6 +872,7 @@ class OrbiRuntime:
             tenant_slug=tenant.slug,
             tenant_id=tenant.id,
             user_id=user.user_id,
+            role=user.role,
             tool_name=spec.name,
             latencies_ms=dict(deadline.stage_latencies_ms),
             provider=envelope.provider or None,
