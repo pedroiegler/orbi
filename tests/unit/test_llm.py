@@ -1,0 +1,278 @@
+"""Camada de LLM: PII, prompt, provedores e failover."""
+
+from __future__ import annotations
+
+from datetime import datetime
+
+import pytest
+
+from orbi.core.deadline import Deadline
+from orbi.core.errors import ConfigurationError, LLMError, LLMTimeout, LLMUnavailable
+from orbi.llm.pii import PIIRedactor
+from orbi.llm.port import LLMRequest, ToolCallEnvelope
+from orbi.llm.prompt import PromptBuilder, PromptContext, prompt_version
+from orbi.llm.providers.rule_based import RuleBasedProvider, is_anaphora
+from orbi.llm.router import LLMRouter
+from orbi.tools.registry import all_tools, tools_for_role
+
+# --- PIIRedactor ---------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("original", "expected"),
+    [
+        ("meu cpf e 123.456.789-00", "meu cpf e [cpf]"),
+        ("cnpj 12.345.678/0001-90 da silva", "cnpj [cnpj] da silva"),
+        ("manda no 43 99123-4567", "manda no [telefone]"),
+        ("email: joao.silva@empresa.com.br", "email: [email]"),
+    ],
+)
+def test_redactor_masks_personal_data(original: str, expected: str) -> None:
+    assert PIIRedactor().redact(original) == expected
+
+
+def test_redactor_keeps_the_question_intact() -> None:
+    """Mascarar nao custa capacidade: a pergunta continua inteira."""
+    question = "quanto tem de tubo pvc 100 na filial cambe?"
+    assert PIIRedactor().redact(question) == question
+
+
+def test_redactor_reports_what_it_masked() -> None:
+    report = PIIRedactor().analyze("cpf 123.456.789-00 e fone 43 99123-4567")
+    assert report.counts["cpf"] == 1
+    assert report.counts["phone"] == 1
+    assert report.redacted_anything
+
+
+# --- PromptBuilder -------------------------------------------------------
+
+
+def _context(role: str = "sales_rep") -> PromptContext:
+    return PromptContext(role=role, now=datetime(2026, 8, 24, 10, 30))
+
+
+def test_user_text_never_enters_the_system_prompt() -> None:
+    request = PromptBuilder().build(
+        tenant_name="Distribuidora Teste",
+        question="quanto tem de tubo pvc 100?",
+        tools=all_tools(),
+        context=_context(),
+    )
+    assert "tubo pvc" not in request.system_prefix
+    assert "tubo pvc" not in request.system_suffix
+    assert request.messages[-1]["content"] == "quanto tem de tubo pvc 100?"
+
+
+def test_static_prefix_is_identical_between_requests() -> None:
+    """E o que faz o prompt caching valer alguma coisa."""
+    builder = PromptBuilder()
+    first = builder.build(
+        tenant_name="Distribuidora Teste",
+        question="primeira",
+        tools=all_tools(),
+        context=PromptContext(role="sales_rep", now=datetime(2026, 8, 24, 10, 0)),
+    )
+    second = builder.build(
+        tenant_name="Distribuidora Teste",
+        question="segunda",
+        tools=all_tools(),
+        context=PromptContext(role="sales_rep", now=datetime(2026, 8, 24, 18, 0)),
+    )
+    assert first.system_prefix == second.system_prefix
+    assert first.system_suffix != second.system_suffix
+
+
+def test_pii_is_masked_before_the_request_is_built() -> None:
+    request = PromptBuilder().build(
+        tenant_name="T",
+        question="o cliente de cpf 123.456.789-00 tem titulo em aberto?",
+        tools=all_tools(),
+        context=_context("finance"),
+    )
+    assert "123.456.789-00" not in request.messages[-1]["content"]
+    assert "[cpf]" in request.messages[-1]["content"]
+
+
+def test_tools_are_filtered_by_role_in_the_prompt() -> None:
+    request = PromptBuilder().build(
+        tenant_name="T",
+        question="qualquer",
+        tools=tools_for_role("sales_rep"),
+        context=_context(),
+    )
+    names = {tool["name"] for tool in request.tools}
+    assert "list_open_invoices" not in names
+
+
+def test_only_the_last_five_turns_are_sent() -> None:
+    context = _context()
+    context.recent_turns = [{"role": "user", "text": f"pergunta {i}"} for i in range(10)]
+    request = PromptBuilder().build(
+        tenant_name="T", question="atual", tools=all_tools(), context=context
+    )
+    assert len(request.messages) == 6  # 5 turnos + a pergunta atual
+
+
+def test_slots_go_to_the_dynamic_suffix() -> None:
+    context = _context()
+    context.slots = {"ultimo_produto": "Tubo PVC 100"}
+    request = PromptBuilder().build(
+        tenant_name="T", question="e o preco dele?", tools=all_tools(), context=context
+    )
+    assert "Tubo PVC 100" in request.system_suffix
+
+
+def test_prompt_version_changes_with_the_tool_schemas() -> None:
+    full = prompt_version(all_tools())
+    partial = prompt_version(tools_for_role("sales_rep"))
+    assert full != partial
+    assert full.startswith("2026-")
+
+
+# --- Provedor por regras -------------------------------------------------
+
+
+def _ask(question: str, role: str = "admin") -> ToolCallEnvelope:
+    request = PromptBuilder().build(
+        tenant_name="T",
+        question=question,
+        tools=tools_for_role(role),
+        context=_context(role),
+    )
+    return RuleBasedProvider().complete(request)
+
+
+@pytest.mark.parametrize(
+    ("question", "tool"),
+    [
+        ("quanto tem de tubo pvc 100?", "check_stock"),
+        ("tem cimento no estoque?", "check_stock"),
+        ("qual o preco do tubo pvc 100?", "check_price"),
+        ("quanto custa o cimento?", "check_price"),
+        ("a construtora silva tem titulos em aberto?", "list_open_invoices"),
+        ("quanto a maratex esta devendo?", "list_open_invoices"),
+        ("qual o ultimo pedido da construtora silva?", "get_last_order"),
+    ],
+)
+def test_rule_based_selects_the_right_tool(question: str, tool: str) -> None:
+    envelope = _ask(question)
+    assert envelope.has_tool_call
+    assert envelope.tool_name == tool
+
+
+def test_rule_based_extracts_the_product_term() -> None:
+    envelope = _ask("quanto tem de tubo pvc 100?")
+    assert envelope.tool_args["product_term"] == "tubo pvc 100"
+
+
+def test_rule_based_extracts_location() -> None:
+    envelope = _ask("quanto tem de cimento na filial cambe?")
+    assert envelope.tool_args["product_term"] == "cimento"
+    assert envelope.tool_args["location_term"] == "filial cambe"
+
+
+def test_rule_based_extracts_customer_and_quantity_for_price() -> None:
+    envelope = _ask("quanto fica 50 sacos de cimento para a construtora silva?")
+    assert envelope.tool_name == "check_price"
+    assert envelope.tool_args["quantity"] == 50
+    assert "cimento" in envelope.tool_args["product_term"]
+    assert "construtora silva" in envelope.tool_args["customer_term"]
+
+
+def test_rule_based_never_offers_a_tool_the_role_cannot_use() -> None:
+    envelope = _ask("a construtora silva tem titulos em aberto?", role="sales_rep")
+    assert not envelope.has_tool_call
+
+
+def test_rule_based_answers_out_of_scope_for_unrelated_questions() -> None:
+    envelope = _ask("qual a previsao do tempo amanha?")
+    assert envelope.finish_reason == "text"
+    assert envelope.text == "FORA_DE_ESCOPO"
+
+
+def test_anaphora_is_detected_for_slot_filling() -> None:
+    assert is_anaphora("dele")
+    assert is_anaphora("Desse")
+    assert not is_anaphora("cimento")
+
+
+# --- Router --------------------------------------------------------------
+
+
+class _FakeProvider:
+    def __init__(self, name: str, manufacturer: str, error: Exception | None = None) -> None:
+        self.name = name
+        self.manufacturer = manufacturer
+        self.model = f"{name}-1"
+        self._error = error
+        self.calls = 0
+
+    def complete(self, request: LLMRequest) -> ToolCallEnvelope:
+        self.calls += 1
+        if self._error is not None:
+            raise self._error
+        return ToolCallEnvelope(
+            finish_reason="tool_call",
+            tool_name="check_stock",
+            tool_args={"product_term": "cimento"},
+            provider=self.name,
+            model=self.model,
+        )
+
+
+def _request() -> LLMRequest:
+    return PromptBuilder().build(
+        tenant_name="T", question="quanto tem de cimento?", tools=all_tools(), context=_context()
+    )
+
+
+def test_router_uses_the_primary_when_it_works() -> None:
+    primary = _FakeProvider("anthropic", "anthropic")
+    fallback = _FakeProvider("openai", "openai")
+    envelope = LLMRouter(primary, fallback).complete(_request(), Deadline(total_ms=5_000))
+    assert envelope.provider == "anthropic"
+    assert fallback.calls == 0
+
+
+def test_router_fails_over_to_a_different_manufacturer() -> None:
+    primary = _FakeProvider("anthropic", "anthropic", error=LLMTimeout("caiu"))
+    fallback = _FakeProvider("openai", "openai")
+    envelope = LLMRouter(primary, fallback).complete(_request(), Deadline(total_ms=5_000))
+    assert envelope.provider == "openai"
+    assert fallback.calls == 1
+
+
+def test_router_refuses_two_providers_from_the_same_manufacturer() -> None:
+    with pytest.raises(ConfigurationError):
+        LLMRouter(_FakeProvider("a", "anthropic"), _FakeProvider("b", "anthropic"))
+
+
+def test_router_does_not_try_the_fallback_without_budget() -> None:
+    """O primario queimou o orcamento e falhou: nao ha tempo para um segundo."""
+    deadline = Deadline(total_ms=5_000)
+
+    class SlowFailingProvider(_FakeProvider):
+        def complete(self, request: LLMRequest) -> ToolCallEnvelope:
+            deadline.started_at -= 10  # consumiu o turno inteiro antes de falhar
+            raise LLMTimeout("caiu depois de demorar")
+
+    primary = SlowFailingProvider("anthropic", "anthropic")
+    fallback = _FakeProvider("openai", "openai")
+
+    with pytest.raises(LLMUnavailable):
+        LLMRouter(primary, fallback).complete(_request(), deadline)
+    assert fallback.calls == 0
+
+
+def test_router_reports_both_failures() -> None:
+    primary = _FakeProvider("anthropic", "anthropic", error=LLMError("um"))
+    fallback = _FakeProvider("openai", "openai", error=LLMError("dois"))
+    with pytest.raises(LLMUnavailable) as exc:
+        LLMRouter(primary, fallback).complete(_request(), Deadline(total_ms=5_000))
+    assert "um" in str(exc.value) and "dois" in str(exc.value)
+
+
+def test_router_records_llm_latency() -> None:
+    deadline = Deadline(total_ms=5_000)
+    LLMRouter(_FakeProvider("anthropic", "anthropic")).complete(_request(), deadline)
+    assert "llm" in deadline.stage_latencies_ms
