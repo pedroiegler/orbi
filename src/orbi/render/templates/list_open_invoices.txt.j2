@@ -1,0 +1,13 @@
+{#- Titulos em aberto de um cliente. -#}
+{% if invoices %}
+{{ customer_name }} — {{ invoices | length }} {{ invoices | length | plural('título em aberto', 'títulos em aberto') }} · {{ total_open | money }}
+{% for invoice in invoices %}
+{% set late = (' (' ~ (invoice.days_overdue | days_label) ~ ')') if invoice.days_overdue > 0 else '' %}
+  {{ invoice.number }} · {{ invoice.open_amount | money(invoice.currency) }} · vence {{ invoice.due_date | day }}{{ late }}
+{% endfor %}
+{% if overdue_count > 0 %}
+{{ overdue_count }} {{ overdue_count | plural('título vencido', 'títulos vencidos') }}.
+{% endif %}
+{% else %}
+{{ customer_name }} — nenhum título em aberto.
+{% endif %}

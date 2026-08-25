@@ -1,0 +1,17 @@
+{
+  "_comment": "L3 — resolucao de entidade contra o catalogo de demonstracao. Casos AMBIGUOUS sao tao importantes quanto os FOUND: pedir esclarecimento e o comportamento correto, nao uma falha.",
+  "cases": [
+    {"term": "cimento", "entity_type": "product", "expect": "FOUND", "expected_id": "5120"},
+    {"term": "cimento cp ii", "entity_type": "product", "expect": "FOUND", "expected_id": "5120"},
+    {"term": "argamassa", "entity_type": "product", "expect": "FOUND", "expected_id": "6010"},
+    {"term": "tinta acrilica", "entity_type": "product", "expect": "FOUND", "expected_id": "6120"},
+    {"term": "cimeto", "entity_type": "product", "expect": "FOUND", "expected_id": "5120"},
+    {"term": "tubo pvc esgoto 100 mm", "entity_type": "product", "expect": "FOUND", "expected_id": "4471"},
+    {"term": "tubo pvc", "entity_type": "product", "expect": "AMBIGUOUS", "expected_id": "4471"},
+    {"term": "helicoptero", "entity_type": "product", "expect": "NOT_FOUND"},
+    {"term": "construtora silva", "entity_type": "customer", "expect": "FOUND", "expected_id": "9001"},
+    {"term": "maratex", "entity_type": "customer", "expect": "FOUND", "expected_id": "9002"},
+    {"term": "4471", "entity_type": "product", "expect": "FOUND", "expected_id": "4471", "allow_code_match": true},
+    {"term": "7891234500011", "entity_type": "product", "expect": "FOUND", "expected_id": "4471", "allow_code_match": true}
+  ]
+}

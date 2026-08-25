@@ -1,0 +1,14 @@
+{
+  "_comment": "L4 — turno inteiro contra o ERP de memoria. Fixtures golden: o texto exato importa menos que os fatos que ele precisa conter.",
+  "cases": [
+    {"question": "quanto tem de cimento?", "role": "sales_rep", "expect_status": "ok", "expect_tool": "check_stock", "expect_entity": "5120", "expect_contains": ["CIM CP-II 50KG", "disponíveis"]},
+    {"question": "quanto tem de cimento na filial cambe?", "role": "sales_rep", "expect_status": "ok", "expect_contains": ["Filial Cambe"]},
+    {"question": "qual o preco do cimento?", "role": "sales_rep", "expect_status": "ok", "expect_tool": "check_price", "expect_contains": ["R$"], "forbidden_contains": ["Custo"]},
+    {"question": "qual o preco do cimento?", "role": "finance", "expect_status": "ok", "expect_contains": ["Custo"]},
+    {"question": "a construtora silva tem titulos em aberto?", "role": "finance", "expect_status": "ok", "expect_tool": "list_open_invoices", "expect_contains": ["NF 12345"]},
+    {"question": "qual o ultimo pedido da construtora silva?", "role": "sales_rep", "expect_status": "ok", "expect_tool": "get_last_order", "expect_contains": ["PV 8842"]},
+    {"question": "quanto tem de tubo pvc?", "role": "sales_rep", "expect_status": "ambiguous", "expect_contains": ["Qual deles", "1."]},
+    {"question": "quanto tem de helicoptero?", "role": "sales_rep", "expect_status": "not_found", "expect_contains": ["código"]},
+    {"question": "qual a previsao do tempo?", "role": "sales_rep", "expect_status": "out_of_scope"}
+  ]
+}

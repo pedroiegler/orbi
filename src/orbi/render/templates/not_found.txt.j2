@@ -1,0 +1,10 @@
+{#- Nao encontrou: sugere o mais proximo e pede o codigo (secao 6.10). -#}
+Não encontrei "{{ term }}" no {{ entity_label }}.
+{% if suggestions %}
+Perto disso eu tenho:
+{% for option in suggestions %}
+{% set label = option.name ~ (' (' ~ option.code ~ ')' if option.code else '') %}
+  - {{ label }}
+{% endfor %}
+{% endif %}
+Se souber o código, me manda que eu consulto.

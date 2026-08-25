@@ -1,0 +1,13 @@
+{#- Ultimo pedido do cliente. -#}
+{% if order %}
+{{ order.customer_name }} — último pedido {{ order.number }} em {{ order.ordered_at | moment }}
+{{ order.total | money(order.currency) }} · {{ order.status }}
+{% for line in order.lines %}
+  {{ line.quantity | number }} x {{ line.product_name }} · {{ line.total | money(order.currency) }}
+{% endfor %}
+{% if order.delivery_date %}
+Entrega prevista: {{ order.delivery_date | day }}
+{% endif %}
+{% else %}
+{{ customer_name }} — nenhum pedido encontrado.
+{% endif %}

@@ -1,0 +1,140 @@
+# ORBI — CI. Regressao de eval bloqueia merge (ORBI.md secao 14).
+name: ci
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+
+env:
+  ORBI_ENV: test
+  ORBI_SECRET_KEY: hkFbLbNr4-tzB1SO0RRhIvFkNsjVeIz0e6MegGxxUAM=
+  ORBI_LLM_PRIMARY: rule_based
+  ORBI_LLM_FALLBACK: ""
+  ORBI_EMBEDDING_PROVIDER: hashing
+  ORBI_DATABASE_URL: postgresql+psycopg://orbi_app:orbi-dev@localhost:5432/orbi_test
+  ORBI_DATABASE_ADMIN_URL: postgresql+psycopg://postgres:orbi-dev@localhost:5432/orbi_test
+
+jobs:
+  quality:
+    name: lint e tipos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: ruff
+        run: ruff check src tests
+      - name: mypy
+        run: mypy src/orbi
+
+  tests:
+    name: testes, conformance e evals
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: orbi-dev
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -e ".[dev]"
+
+      - name: papel da aplicacao (sem BYPASSRLS)
+        env:
+          PGPASSWORD: orbi-dev
+        run: |
+          psql -h localhost -U postgres -d postgres -c \
+            "CREATE ROLE orbi_app LOGIN PASSWORD 'orbi-dev' NOBYPASSRLS"
+
+      - name: alembic check (modelo e migration em sincronia)
+        run: |
+          psql -h localhost -U postgres -d postgres -c "CREATE DATABASE orbi_test" || true
+          alembic upgrade head
+          alembic check
+        env:
+          PGPASSWORD: orbi-dev
+
+      - name: testes de unidade e integracao
+        run: pytest tests/unit tests/integration -q
+
+      - name: conformance kit
+        run: pytest tests/conformance -q
+
+      - name: end-to-end
+        run: pytest tests/e2e -q -m "not odoo"
+
+      - name: evals L1-L5
+        run: pytest tests/evals -q
+
+  odoo:
+    name: conformance contra Odoo real
+    runs-on: ubuntu-latest
+    # O adapter de referencia roda contra um Odoo de verdade (ORBI.md secao 17).
+    # Fora de PR para nao pagar 10 minutos de bootstrap em cada push.
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: orbi-dev
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      odoo-db:
+        image: postgres:17
+        env:
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: odoo-dev
+          POSTGRES_DB: postgres
+        options: >-
+          --health-cmd "pg_isready -U odoo"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      odoo:
+        image: odoo:18
+        env:
+          HOST: odoo-db
+          USER: odoo
+          PASSWORD: odoo-dev
+        ports: ["8069:8069"]
+    env:
+      ORBI_ODOO_URL: http://localhost:8069
+      ORBI_ODOO_DB: orbi
+      ORBI_ODOO_USER: admin
+      ORBI_ODOO_API_KEY: admin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: papel da aplicacao
+        env:
+          PGPASSWORD: orbi-dev
+        run: |
+          psql -h localhost -U postgres -d postgres -c \
+            "CREATE ROLE orbi_app LOGIN PASSWORD 'orbi-dev' NOBYPASSRLS"
+          psql -h localhost -U postgres -d postgres -c "CREATE DATABASE orbi_test"
+      - name: preparar Odoo
+        run: python scripts/odoo_bootstrap.py --url http://localhost:8069
+      - name: conformance kit contra Odoo
+        run: pytest tests/conformance -q
+      - name: end-to-end contra Odoo
+        run: pytest tests/e2e/test_odoo_turn.py -q

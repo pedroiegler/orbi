@@ -1,0 +1,18 @@
+{#- Resposta de estoque.
+    O `basis` nunca e omitido: dizer "37" quando 12 estao comprometidos e o erro
+    que acaba com a confianca (ORBI.md secao 6.12). -#}
+{% set label = name ~ (' (' ~ code ~ ')' if code is defined and code else '') %}
+{% set basis_label = 'disponíveis' if basis == 'available' else 'em estoque físico' %}
+{% set where = (' · ' ~ location) if (location is defined and location) else '' %}
+{{ label }} — {{ quantity | number }} {{ uom }} {{ basis_label }}{{ where }}
+{% if basis == 'physical' %}
+Este ERP não informa reservas, então o número é o estoque físico.
+{% endif %}
+{% if location_mode in ('inline', 'top') %}
+{% for entry in shown_locations %}
+  {{ entry.name }}: {{ entry.quantity | number }}
+{% endfor %}
+{% endif %}
+{% if location_mode == 'top' %}
+  e outros {{ other_locations }} {{ other_locations | plural('local', 'locais') }}
+{% endif %}

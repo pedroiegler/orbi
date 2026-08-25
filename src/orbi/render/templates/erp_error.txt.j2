@@ -1,0 +1,12 @@
+{#- ERP fora do ar. Nunca responder estoque de cache (D-009): melhor nao
+    responder do que responder errado sobre quantidade. -#}
+{% if kind == 'timeout' %}
+O sistema da empresa demorou demais para responder agora. Tenta de novo em um minuto.
+{% elif kind == 'circuit_open' %}
+O sistema da empresa está instável e parei de consultar por alguns minutos. A equipe já foi avisada.
+{% elif kind == 'auth' %}
+Não consegui acessar o sistema da empresa: a credencial precisa ser revista. A equipe já foi avisada.
+{% else %}
+Não consegui falar com o sistema da empresa agora. A equipe já foi avisada.
+{% endif %}
+Prefiro não responder a te passar um número desatualizado.

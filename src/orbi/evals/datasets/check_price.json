@@ -1,0 +1,10 @@
+{
+  "_comment": "Casos L1/L2 da tool check_price.",
+  "cases": [
+    {"question": "qual o preco do tubo pvc 100?", "role": "sales_rep", "expected_args": {"product_term": "tubo pvc 100"}},
+    {"question": "quanto custa o cimento?", "role": "sales_rep", "expected_args": {"product_term": "cimento"}},
+    {"question": "qual o valor da tinta acrilica?", "role": "sales_rep", "expected_args": {"product_term": "tinta acrilica"}},
+    {"question": "quanto fica 50 sacos de cimento para a construtora silva?", "role": "sales_rep", "expected_args": {"product_term": "cimento", "customer_term": "construtora silva", "quantity": "50"}},
+    {"question": "quanto custa argamassa para a maratex?", "role": "finance", "expected_args": {"product_term": "argamassa", "customer_term": "maratex"}}
+  ]
+}
