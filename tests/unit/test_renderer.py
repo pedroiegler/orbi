@@ -305,3 +305,68 @@ def test_price_answer_for_finance_is_exactly_what_the_user_sees() -> None:
         "50 un = R$ 1.945,00\n"
         "Custo R$ 24,10 · margem 38,1%"
     )
+
+
+def test_ambiguous_options_are_one_per_line() -> None:
+    """Opcoes coladas numa linha so viram uma resposta ilegivel no WhatsApp."""
+    text = RENDERER.render(
+        "ambiguous.txt.j2",
+        {
+            "term": "tubo pvc",
+            "options": [
+                {"name": "Tubo PVC Esgoto 100mm", "code": "TBPVC100"},
+                {"name": "Tubo PVC Esgoto 150mm", "code": "TBPVC150"},
+                {"name": "Tubo PVC Soldavel 100mm", "code": None},
+            ],
+        },
+    )
+    assert text == (
+        'Encontrei mais de um resultado para "tubo pvc". Qual deles?\n'
+        "1. Tubo PVC Esgoto 100mm (TBPVC100)\n"
+        "2. Tubo PVC Esgoto 150mm (TBPVC150)\n"
+        "3. Tubo PVC Soldavel 100mm\n"
+        "Responda com o número."
+    )
+
+
+def test_not_found_with_suggestions_is_one_per_line() -> None:
+    text = RENDERER.render(
+        "not_found.txt.j2",
+        {
+            "term": "cano roxo",
+            "entity_label": "catálogo",
+            "suggestions": [
+                {"name": "Tubo PVC Esgoto 100mm", "code": "TBPVC100"},
+                {"name": "Tubo PVC Soldavel 100mm", "code": "TBPVC100S"},
+            ],
+        },
+    )
+    assert text == (
+        'Não encontrei "cano roxo" no catálogo.\n'
+        "Perto disso eu tenho:\n"
+        "  - Tubo PVC Esgoto 100mm (TBPVC100)\n"
+        "  - Tubo PVC Soldavel 100mm (TBPVC100S)\n"
+        "Se souber o código, me manda que eu consulto."
+    )
+
+
+def test_every_template_keeps_its_line_breaks() -> None:
+    """Guarda contra o `trim_blocks` comer a quebra de linha em qualquer template."""
+    import re
+
+    from orbi.render.renderer import TEMPLATES_DIR
+
+    for path in TEMPLATES_DIR.glob("*.txt.j2"):
+        lines = path.read_text(encoding="utf-8").splitlines()
+        for line_number, line in enumerate(lines, 1):
+            stripped = line.strip()
+            if not stripped or stripped.startswith("{#"):
+                continue
+            # Linha que TERMINA em tag de bloco tem a quebra seguinte engolida
+            # pelo trim_blocks: so vale quando a linha inteira e a tag.
+            ends_with_block = re.search(r"\{%-?\s*(end)?(if|for|set)\b.*%\}$", stripped)
+            if ends_with_block and not stripped.startswith("{%"):
+                raise AssertionError(
+                    f"{path.name}:{line_number} termina em tag de bloco e perderia a "
+                    f"quebra de linha: {stripped}"
+                )

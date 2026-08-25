@@ -3,7 +3,8 @@ Não encontrei "{{ term }}" no {{ entity_label }}.
 {% if suggestions %}
 Perto disso eu tenho:
 {% for option in suggestions %}
-  - {{ option.name }}{% if option.code %} ({{ option.code }}){% endif %}
+{% set label = option.name ~ (' (' ~ option.code ~ ')' if option.code else '') %}
+  - {{ label }}
 {% endfor %}
 {% endif %}
 Se souber o código, me manda que eu consulto.

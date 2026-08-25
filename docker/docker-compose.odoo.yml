@@ -1,0 +1,47 @@
+# ORBI — Odoo de teste (ORBI.md secao 17).
+#
+# O Odoo e o ERP de desenvolvimento e o adapter de referencia permanente: e
+# contra ele que o Conformance Kit roda no CI. Sobe com os dados de demonstracao
+# que ja vem no proprio Odoo — nao se constroi um ERP.
+#
+#   docker compose -f docker/docker-compose.odoo.yml up -d
+#   scripts/odoo_bootstrap.sh
+name: orbi-odoo
+
+services:
+  odoo-db:
+    image: postgres:17
+    container_name: orbi-odoo-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: ${ODOO_DB_PASSWORD:-odoo-dev}
+      POSTGRES_DB: postgres
+    volumes:
+      - orbi-odoo-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  odoo:
+    image: odoo:18
+    container_name: orbi-odoo
+    restart: unless-stopped
+    depends_on:
+      odoo-db:
+        condition: service_healthy
+    environment:
+      HOST: odoo-db
+      USER: odoo
+      PASSWORD: ${ODOO_DB_PASSWORD:-odoo-dev}
+    ports:
+      - "8069:8069"
+    volumes:
+      - orbi-odoo-data:/var/lib/odoo
+    command: ["odoo", "--db_host=odoo-db", "--db_user=odoo", "--db_password=${ODOO_DB_PASSWORD:-odoo-dev}"]
+
+volumes:
+  orbi-odoo-db:
+  orbi-odoo-data:

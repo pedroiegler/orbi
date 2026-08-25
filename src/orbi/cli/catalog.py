@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from typing import Annotated
 
 import typer
 from sqlalchemy import func, select
 
-from orbi.catalog.sync import CatalogSynchronizer
+from orbi.catalog.sync import ABORT_CHANGE_RATIO, CatalogSynchronizer
 from orbi.cli.common import console, ok, resolve_tenant_id, table, warn
 from orbi.db.models import CatalogAbbreviation, CatalogItem, CatalogSyncRun, EntityAlias
 from orbi.db.session import tenant_session
@@ -28,6 +29,16 @@ def sync(
     since_hours: Annotated[
         int, typer.Option("--since-hours", help="Janela do incremental.")
     ] = 4,
+    force: Annotated[
+        bool,
+        typer.Option(
+            "--force",
+            help=(
+                "Aplica mesmo mudando mais de 30% do catalogo. Use so quando "
+                "voce sabe o motivo da mudanca (renomeacao em massa, por exemplo)."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Sincroniza o catalogo. Idempotente e retomavel."""
     tenant_id = resolve_tenant_id(tenant)
@@ -38,7 +49,13 @@ def sync(
     with tenant_session(tenant_id) as session:
         tenant_erp = erp_connection.build_for_tenant(session, tenant_id)
         items = tenant_erp.adapter.iter_catalog(since)
-        report = CatalogSynchronizer(session, tenant_id, embedder).run(
+        synchronizer = CatalogSynchronizer(
+            session,
+            tenant_id,
+            embedder,
+            abort_ratio=Decimal("1.00") if force else ABORT_CHANGE_RATIO,
+        )
+        report = synchronizer.run(
             items,
             mode=mode,
             on_alert=lambda message: notifier.alert("sync abortado", f"{tenant}: {message}"),
@@ -46,6 +63,10 @@ def sync(
 
     if report.aborted:
         warn(f"sync abortado: {report.error}")
+        console.print(
+            "Se a mudanca e esperada (renomeacao em massa, troca de catalogo), "
+            "repita com `--force`."
+        )
         raise typer.Exit(2)
     ok(f"sync {mode} concluido — {report.summary()}")
     if report.flagged:

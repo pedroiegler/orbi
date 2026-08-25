@@ -1,6 +1,7 @@
 {#- Na duvida, pergunta. Nunca chuta a entidade (principio 4). -#}
 Encontrei mais de um resultado para "{{ term }}". Qual deles?
 {% for option in options %}
-{{ loop.index }}. {{ option.name }}{% if option.code %} ({{ option.code }}){% endif %}
+{% set label = option.name ~ (' (' ~ option.code ~ ')' if option.code else '') %}
+{{ loop.index }}. {{ label }}
 {% endfor %}
 Responda com o número.

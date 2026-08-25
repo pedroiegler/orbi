@@ -11,6 +11,7 @@ Somente leitura: nenhum metodo escreve no ERP (proibicao P12).
 from __future__ import annotations
 
 import http.client
+import re
 import xmlrpc.client
 from collections.abc import Iterator
 from datetime import date, datetime, timedelta
@@ -210,7 +211,7 @@ class OdooAdapter:
         products = self._execute(
             "product.product",
             "read",
-            [[pid], ["display_name", "qty_available", "free_qty", "uom_id"]],
+            [[pid], ["name", "qty_available", "free_qty", "uom_id"]],
             {"context": context},
             timeout_ms=timeout_ms,
         )
@@ -230,7 +231,7 @@ class OdooAdapter:
 
         return StockResult(
             erp_entity_id=str(pid),
-            name=str(product.get("display_name") or ""),
+            name=str(product.get("name") or ""),
             uom=_name_of(product.get("uom_id")) or "un",
             physical=physical,
             reserved=reserved,
@@ -316,7 +317,7 @@ class OdooAdapter:
             )
             if not partners:
                 raise ErpNotFound(f"cliente {customer_id} nao existe no Odoo", adapter=self.name)
-            customer_name = str(partners[0].get("display_name") or "")
+            customer_name = _clean_name(partners[0].get("display_name"))
             pricelist = partners[0].get("property_product_pricelist")
             if pricelist:
                 pricelist_id = int(pricelist[0])
@@ -325,7 +326,7 @@ class OdooAdapter:
         if quantity is not None:
             context["quantity"] = float(quantity)
 
-        fields = ["display_name", "list_price", "standard_price", "uom_id"]
+        fields = ["name", "list_price", "standard_price", "uom_id"]
         rows = self._execute(
             "product.product",
             "read",
@@ -351,7 +352,7 @@ class OdooAdapter:
 
         return PriceResult(
             erp_entity_id=str(pid),
-            name=str(product.get("display_name") or ""),
+            name=str(product.get("name") or ""),
             unit_price=unit_price.quantize(Decimal("0.01")),
             uom=_name_of(product.get("uom_id")) or "un",
             quantity=quantity,
@@ -429,7 +430,7 @@ class OdooAdapter:
                     erp_entity_id=str(row["id"]),
                     number=str(row.get("name") or row["id"]),
                     customer_id=str(int(partner[0])),
-                    customer_name=str(partner[1]),
+                    customer_name=_clean_name(partner[1]),
                     amount=_decimal(row.get("amount_total")).quantize(Decimal("0.01")),
                     open_amount=_decimal(row.get("amount_residual")).quantize(Decimal("0.01")),
                     due_date=due,
@@ -478,7 +479,7 @@ class OdooAdapter:
             erp_entity_id=str(order["id"]),
             number=str(order.get("name") or order["id"]),
             customer_id=str(int(partner[0])),
-            customer_name=str(partner[1]),
+            customer_name=_clean_name(partner[1]),
             ordered_at=_datetime(order.get("date_order")) or datetime.now(),
             total=_decimal(order.get("amount_total")).quantize(Decimal("0.01")),
             status=str(order.get("state") or ""),
@@ -486,7 +487,9 @@ class OdooAdapter:
             lines=tuple(
                 OrderLine(
                     product_id=str(int((line.get("product_id") or [0, ""])[0])),
-                    product_name=str((line.get("product_id") or [0, line.get("name", "")])[1]),
+                    product_name=_clean_name(
+                        (line.get("product_id") or [0, line.get("name", "")])[1]
+                    ),
                     quantity=_decimal(line.get("product_uom_qty")),
                     unit_price=_decimal(line.get("price_unit")).quantize(Decimal("0.01")),
                     total=_decimal(line.get("price_subtotal")).quantize(Decimal("0.01")),
@@ -515,7 +518,7 @@ class OdooAdapter:
             rows = self._execute(
                 "product.product",
                 "search_read",
-                [domain, ["display_name", "default_code", "barcode", "active", "write_date"]],
+                [domain, ["name", "default_code", "barcode", "active", "write_date"]],
                 {
                     "limit": CATALOG_PAGE_SIZE,
                     "offset": offset,
@@ -529,7 +532,7 @@ class OdooAdapter:
                 yield CatalogItem(
                     erp_entity_id=str(row["id"]),
                     entity_type="product",
-                    name=str(row.get("display_name") or ""),
+                    name=str(row.get("name") or ""),
                     code=_optional_str(row.get("default_code")),
                     barcode=_optional_str(row.get("barcode")),
                     active=bool(row.get("active", True)),
@@ -560,7 +563,7 @@ class OdooAdapter:
                 yield CatalogItem(
                     erp_entity_id=str(row["id"]),
                     entity_type="customer",
-                    name=str(row.get("display_name") or ""),
+                    name=_clean_name(row.get("display_name")),
                     code=_optional_str(row.get("ref")),
                     active=bool(row.get("active", True)),
                     updated_at=_datetime(row.get("write_date")),
@@ -607,6 +610,18 @@ def _optional_str(value: Any) -> str | None:
     if value in (None, False, ""):
         return None
     return str(value)
+
+
+_CODE_PREFIX_RE = re.compile(r"^\[[^\]]{1,32}\]\s*")
+
+
+def _clean_name(value: Any) -> str:
+    """O Odoo prefixa o nome com o codigo interno ("[CIMCP2] CIM ...").
+
+    O codigo aparece no recibo da entidade por conta propria; repetir dentro do
+    nome so polui a resposta.
+    """
+    return _CODE_PREFIX_RE.sub("", str(value or "")).strip()
 
 
 def _name_of(value: Any) -> str | None:
