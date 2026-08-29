@@ -141,8 +141,9 @@ Não existe painel: a equipe opera por linha de comando.
 Python 3.13 · FastAPI · Pydantic strict · PostgreSQL 17 + pgvector + pg_trgm ·
 SQLAlchemy 2 · Alembic · Typer · Jinja2 · Docker.
 
-Dois provedores de LLM **de fabricantes diferentes** atrás de um `LLMPort`
-próprio, com failover automático dentro do orçamento de tempo. Embeddings de 768
+Três provedores de LLM atrás de um `LLMPort` próprio — Gemini (primário hoje),
+Anthropic e OpenAI — com failover automático entre **fabricantes diferentes**,
+dentro do orçamento de tempo. Embeddings de 768
 dimensões. Sem Redis, sem fila, sem worker — entram quando houver gargalo medido.
 
 ---
@@ -177,6 +178,7 @@ O detalhe não cabe aqui. Cada assunto tem seu arquivo em [`docs/`](docs/):
 | Arquivo | Para quê |
 |---|---|
 | [ORBI.md](docs/ORBI.md) | o documento essencial — o que o projeto é e por quê |
+| [**ORBI-ENTENDENDO.md**](docs/ORBI-ENTENDENDO.md) | **comece por aqui** — cada peça explicada, termo por termo, e o que ficou de fora |
 | [ORBI-RESUMO.md](docs/ORBI-RESUMO.md) | versão curta, para abrir sessão de desenvolvimento |
 | [ORBI-ARQUITETURA.md](docs/ORBI-ARQUITETURA.md) | mapa do código: onde cada decisão mora |
 | [ORBI-CONVENCOES.md](docs/ORBI-CONVENCOES.md) | nomenclatura e **as proibições escritas como regra** |
@@ -189,9 +191,9 @@ O detalhe não cabe aqui. Cada assunto tem seu arquivo em [`docs/`](docs/):
 | [ORBI-OBSERVABILIDADE.md](docs/ORBI-OBSERVABILIDADE.md) | alertas, resumo diário, evals |
 | [ORBI-INCIDENTES.md](docs/ORBI-INCIDENTES.md) | o que fazer quando algo quebra |
 
-Dois merecem leitura antes de mexer no código: **ORBI-CONVENCOES.md**, porque
-lista o que não pode ser feito, e **ORBI-DECISOES.md**, porque evita rediscutir
-a mesma coisa toda semana.
+Para entender o produto sem tê-lo construído, comece por **ORBI-ENTENDENDO.md**.
+Antes de mexer no código, leia **ORBI-CONVENCOES.md** (o que não pode ser feito) e
+**ORBI-DECISOES.md** (por que cada coisa é como é).
 
 ---
 

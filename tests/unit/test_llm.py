@@ -276,3 +276,186 @@ def test_router_records_llm_latency() -> None:
     deadline = Deadline(total_ms=5_000)
     LLMRouter(_FakeProvider("anthropic", "anthropic")).complete(_request(), deadline)
     assert "llm" in deadline.stage_latencies_ms
+
+
+# --- Provedor Gemini -----------------------------------------------------
+
+
+class _FakeGeminiResponse:
+    """Resposta do SDK do Google, no formato que o provedor consome."""
+
+    def __init__(self, calls: list[object], text: str | None = None, finish: str = "STOP") -> None:
+        self.function_calls = calls
+        self._text = text
+        self.usage_metadata = type(
+            "Usage",
+            (),
+            {
+                "prompt_token_count": 120,
+                "candidates_token_count": 18,
+                "cached_content_token_count": 0,
+            },
+        )()
+        self.candidates = [type("Candidate", (), {"finish_reason": finish})()]
+
+    @property
+    def text(self) -> str | None:
+        if self._text is None:
+            raise ValueError("resposta sem texto: so function call")
+        return self._text
+
+
+class _FakeGeminiClient:
+    def __init__(self, response: _FakeGeminiResponse) -> None:
+        self._response = response
+        self.calls: list[dict] = []
+        self.models = self
+
+    def generate_content(self, **kwargs: object) -> _FakeGeminiResponse:
+        self.calls.append(kwargs)
+        return self._response
+
+
+def _gemini_request() -> LLMRequest:
+    return PromptBuilder().build(
+        tenant_name="T",
+        question="quanto tem de cimento?",
+        tools=tools_for_role("sales_rep"),
+        context=_context(),
+    )
+
+
+def test_gemini_returns_a_normalized_envelope() -> None:
+    from orbi.llm.providers.gemini_provider import GeminiProvider
+
+    call = type("Call", (), {"name": "check_stock", "args": {"product_term": "cimento"}})()
+    client = _FakeGeminiClient(_FakeGeminiResponse([call]))
+
+    envelope = GeminiProvider("chave", "gemini-3.7-flash", client=client).complete(
+        _gemini_request()
+    )
+
+    assert envelope.has_tool_call
+    assert envelope.tool_name == "check_stock"
+    assert envelope.tool_args == {"product_term": "cimento"}
+    assert envelope.provider == "gemini"
+    assert envelope.tokens_in == 120
+    assert envelope.cost_usd > 0
+    assert envelope.text is None  # com tool escolhida, nao se olha o texto
+
+
+def test_gemini_never_executes_the_function_itself() -> None:
+    """O SDK do Google sabe executar a funcao; aqui quem executa e a Policy Layer."""
+    from orbi.llm.providers.gemini_provider import GeminiProvider
+
+    call = type("Call", (), {"name": "check_stock", "args": {"product_term": "cimento"}})()
+    client = _FakeGeminiClient(_FakeGeminiResponse([call]))
+    GeminiProvider("chave", client=client).complete(_gemini_request())
+
+    config = client.calls[0]["config"]
+    assert config.automatic_function_calling.disable is True
+
+
+def test_gemini_only_offers_the_tools_of_the_role() -> None:
+    from orbi.llm.providers.gemini_provider import GeminiProvider
+
+    call = type("Call", (), {"name": "check_stock", "args": {"product_term": "cimento"}})()
+    client = _FakeGeminiClient(_FakeGeminiResponse([call]))
+    GeminiProvider("chave", client=client).complete(_gemini_request())
+
+    config = client.calls[0]["config"]
+    declared = {fn.name for fn in config.tools[0].function_declarations}
+
+    assert declared == {"check_stock", "check_price", "get_last_order"}
+    assert "list_open_invoices" not in declared
+    # `AUTO`, nao `ANY`: o modelo precisa poder responder FORA_DE_ESCOPO. E a
+    # API recusa `allowed_function_names` fora do modo `ANY`.
+    assert config.tool_config.function_calling_config.mode.value == "AUTO"
+    assert config.tool_config.function_calling_config.allowed_function_names is None
+
+
+def test_gemini_text_answer_is_not_a_tool_call() -> None:
+    from orbi.llm.providers.gemini_provider import GeminiProvider
+
+    client = _FakeGeminiClient(_FakeGeminiResponse([], text="FORA_DE_ESCOPO"))
+    envelope = GeminiProvider("chave", client=client).complete(_gemini_request())
+
+    assert not envelope.has_tool_call
+    assert envelope.text == "FORA_DE_ESCOPO"
+
+
+def test_gemini_safety_block_becomes_a_refusal() -> None:
+    from orbi.llm.providers.gemini_provider import GeminiProvider
+
+    client = _FakeGeminiClient(_FakeGeminiResponse([], finish="SAFETY"))
+    envelope = GeminiProvider("chave", client=client).complete(_gemini_request())
+
+    assert envelope.finish_reason == "refusal"
+
+
+def test_gemini_errors_are_normalized() -> None:
+    from orbi.llm.providers.gemini_provider import GeminiProvider
+
+    class BrokenClient:
+        def __init__(self) -> None:
+            self.models = self
+
+        def generate_content(self, **kwargs: object) -> None:
+            raise RuntimeError("429 RESOURCE_EXHAUSTED: quota da camada gratuita")
+
+    with pytest.raises(LLMError):
+        GeminiProvider("chave", client=BrokenClient()).complete(_gemini_request())
+
+
+def test_gemini_and_anthropic_are_different_manufacturers() -> None:
+    """O failover so vale entre fabricantes distintos (D-011)."""
+    from orbi.llm.providers.anthropic_provider import AnthropicProvider
+    from orbi.llm.providers.gemini_provider import GeminiProvider
+
+    router = LLMRouter(GeminiProvider("a"), AnthropicProvider("b"))
+    assert router.primary.manufacturer != router.fallback.manufacturer  # type: ignore[union-attr]
+
+
+def test_gemini_asks_the_api_for_a_deadline_it_accepts() -> None:
+    """A API recusa prazo abaixo de 10s; o orcamento real e cobrado por nos."""
+    from orbi.llm.providers.gemini_provider import MIN_API_DEADLINE_MS, GeminiProvider
+
+    call = type("Call", (), {"name": "check_stock", "args": {"product_term": "cimento"}})()
+    client = _FakeGeminiClient(_FakeGeminiResponse([call]))
+    request = _gemini_request().model_copy(update={"timeout_ms": 4_000})
+
+    GeminiProvider("chave", client=client).complete(request)
+
+    enviado = client.calls[0]["config"].http_options.timeout
+    assert enviado == MIN_API_DEADLINE_MS
+    assert enviado > request.timeout_ms
+
+
+def test_gemini_gives_up_at_our_budget_not_at_the_api_one() -> None:
+    """Sem isso, o `Deadline` teria um buraco neste provedor."""
+    import time as _time
+
+    from orbi.llm.providers.gemini_provider import GeminiProvider
+
+    class SlowClient:
+        def __init__(self) -> None:
+            self.models = self
+
+        def generate_content(self, **kwargs: object) -> None:
+            _time.sleep(2)
+
+    request = _gemini_request().model_copy(update={"timeout_ms": 200})
+    with pytest.raises(LLMTimeout):
+        GeminiProvider("chave", client=SlowClient()).complete(request)
+
+
+def test_lite_models_can_omit_the_thinking_field() -> None:
+    """Os modelos `lite` recusam `thinking_config`: -1 nao envia o campo."""
+    from orbi.llm.providers.gemini_provider import GeminiProvider
+
+    call = type("Call", (), {"name": "check_stock", "args": {"product_term": "cimento"}})()
+    client = _FakeGeminiClient(_FakeGeminiResponse([call]))
+
+    GeminiProvider("chave", thinking_budget=-1, client=client).complete(_gemini_request())
+
+    assert client.calls[0]["config"].thinking_config is None

@@ -13,7 +13,7 @@ from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 Environment = Literal["development", "test", "staging", "production"]
-LLMProviderName = Literal["anthropic", "openai", "rule_based"]
+LLMProviderName = Literal["gemini", "anthropic", "openai", "rule_based"]
 EmbeddingProviderName = Literal["hashing", "openai"]
 
 EMBEDDING_DIMENSIONS = 768
@@ -59,8 +59,12 @@ class Settings(BaseSettings):
     slow_reply_threshold_ms: int = Field(default=2_500, alias="ORBI_SLOW_REPLY_THRESHOLD_MS")
 
     # --- LLM -------------------------------------------------------------
-    llm_primary: LLMProviderName = Field(default="anthropic", alias="ORBI_LLM_PRIMARY")
-    llm_fallback: LLMProviderName | None = Field(default="openai", alias="ORBI_LLM_FALLBACK")
+    llm_primary: LLMProviderName = Field(default="gemini", alias="ORBI_LLM_PRIMARY")
+    llm_fallback: LLMProviderName | None = Field(default=None, alias="ORBI_LLM_FALLBACK")
+    gemini_api_key: SecretStr = Field(default=SecretStr(""), alias="GEMINI_API_KEY")
+    gemini_model: str = Field(default="gemini-3.7-flash", alias="GEMINI_MODEL")
+    gemini_thinking_budget: int = Field(default=0, alias="GEMINI_THINKING_BUDGET")
+    """0 desliga o raciocinio; -1 nao envia o campo (os modelos `lite` recusam)."""
     anthropic_api_key: SecretStr = Field(default=SecretStr(""), alias="ANTHROPIC_API_KEY")
     anthropic_model: str = Field(default="claude-sonnet-5", alias="ANTHROPIC_MODEL")
     openai_api_key: SecretStr = Field(default=SecretStr(""), alias="OPENAI_API_KEY")
@@ -148,7 +152,17 @@ class Settings(BaseSettings):
 
 
 def _manufacturer(provider: LLMProviderName) -> str:
-    return {"anthropic": "anthropic", "openai": "openai", "rule_based": "local"}[provider]
+    """Fabricante de cada provedor.
+
+    O failover exige fabricantes distintos: dois provedores da mesma empresa
+    caem juntos, e o fallback vira enfeite (D-011).
+    """
+    return {
+        "gemini": "google",
+        "anthropic": "anthropic",
+        "openai": "openai",
+        "rule_based": "local",
+    }[provider]
 
 
 @lru_cache(maxsize=1)

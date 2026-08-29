@@ -17,7 +17,12 @@ from orbi.core.deadline import Deadline
 from orbi.core.errors import ConfigurationError, LLMError, LLMUnavailable
 from orbi.core.settings import Settings, get_settings
 from orbi.llm.port import LLMPort, LLMRequest, ToolCallEnvelope
-from orbi.llm.providers import anthropic_provider, openai_provider, rule_based
+from orbi.llm.providers import (
+    anthropic_provider,
+    gemini_provider,
+    openai_provider,
+    rule_based,
+)
 
 MIN_LLM_BUDGET_MS = 300
 """Abaixo disso nao vale a pena chamar: melhor falhar honestamente."""
@@ -75,6 +80,12 @@ class LLMRouter:
 
 def build_provider(name: str, settings: Settings | None = None) -> LLMPort:
     resolved = settings or get_settings()
+    if name == "gemini":
+        return gemini_provider.build(
+            api_key=resolved.gemini_api_key.get_secret_value(),
+            model=resolved.gemini_model,
+            thinking_budget=resolved.gemini_thinking_budget,
+        )
     if name == "anthropic":
         return anthropic_provider.build(
             api_key=resolved.anthropic_api_key.get_secret_value(),
