@@ -286,3 +286,31 @@ def test_the_suite_accepts_the_test_database(monkeypatch: pytest.MonkeyPatch) ->
         "ORBI_DATABASE_URL", "postgresql+psycopg://orbi_app:x@localhost:5433/orbi_test"
     )
     guard_target_database()
+
+
+# --- configuracao ---------------------------------------------------------
+
+
+def test_env_example_documents_every_setting() -> None:
+    """Variavel que existe no codigo e nao no exemplo e variavel que ninguem usa."""
+    from orbi.core.settings import Settings
+
+    exemplo = (SRC.parents[1] / ".env.example").read_text(encoding="utf-8")
+    faltando = [
+        campo.alias or nome
+        for nome, campo in Settings.model_fields.items()
+        if (campo.alias or nome) not in exemplo
+    ]
+    assert faltando == [], f"ausentes no .env.example: {faltando}"
+
+
+def test_env_example_carries_no_real_secret() -> None:
+    """O exemplo mostra a forma, nunca o valor."""
+    exemplo = (SRC.parents[1] / ".env.example").read_text(encoding="utf-8")
+    for linha in exemplo.splitlines():
+        if not linha or linha.startswith("#") or "=" not in linha:
+            continue
+        chave, _, valor = linha.partition("=")
+        valor = valor.split("#")[0].strip()
+        if any(marca in chave for marca in ("KEY", "SECRET", "TOKEN", "PASSWORD")):
+            assert valor in {"", "change-me"}, f"{chave} tem valor no exemplo"

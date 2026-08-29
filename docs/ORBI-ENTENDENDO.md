@@ -1254,6 +1254,79 @@ o **warm-up**, que é etapa cronometrada do onboarding: número novo que dispara
 mensagens no primeiro dia é número bloqueado. O roteiro está em
 [ORBI-IMPLANTACAO.md](ORBI-IMPLANTACAO.md).
 
+## Como funciona em produção, e quanto custa
+
+### Cada cliente tem o próprio número — e é ele quem paga
+
+Essa é a arquitetura, e ela é decisão comercial antes de ser técnica:
+
+| | Quem é dono | Quem paga | Por quê |
+|---|---|---|---|
+| Número de WhatsApp | **o cliente** | o cliente | custo zero para você; e na LGPD ele é o controlador dos dados |
+| App na Meta | o cliente (ou você, transferindo depois) | — | |
+| Token de acesso | o cliente | — | fica cifrado no seu banco |
+| Servidor, banco, LLM | você | você | é o seu custo por cliente: R$ 120 a 250/mês |
+
+Um número por cliente também isola risco: se um cliente for bloqueado pela Meta
+por mau uso, os outros continuam funcionando. Se todos compartilhassem um número,
+um problema derrubaria a base inteira.
+
+### O que a Meta cobra, e o que ela deixará de dar de graça
+
+Hoje, o fluxo do Orbi é gratuito: o usuário manda a pergunta, isso abre uma
+**janela de atendimento de 24 horas**, e respostas em texto livre dentro dessa
+janela não custam nada. Foi assim desde novembro de 2024.
+
+⚠️ **Isso acaba em 1º de outubro de 2026.** A partir dessa data, as respostas de
+serviço dentro da janela voltam a ser cobradas, à mesma tarifa por mensagem dos
+templates de utilidade de cada país. As tarifas do Brasil devem ser publicadas
+pela Meta **até 1º de setembro de 2026** — ou seja, dias.
+
+Três consequências diretas para o negócio, e vale colocar no calendário:
+
+1. **O custo por cliente precisa ser recalculado** assim que a tabela sair. Hoje
+   a conta é "VPS + LLM"; passa a ser "VPS + LLM + mensagens".
+2. **O teto de consultas por plano deixa de ser só proteção contra abuso** e vira
+   controle de margem. Ele já está implementado
+   (`tenants.monthly_query_cap`), justamente por isso.
+3. **Canais que não cobram por mensagem ganham peso.** Telegram e Slack passam a
+   ser vantagem de custo, não só conveniência. O `ChannelPort` já está pronto
+   para eles.
+
+### A conta, com número redondo
+
+Suponha um cliente do plano Time (R$ 890/mês, até 15 usuários) e 10 vendedores
+fazendo 15 perguntas por dia útil:
+
+```
+10 vendedores × 15 perguntas × 22 dias = 3.300 respostas/mês
+```
+
+- **Hoje:** R$ 0 de mensagem.
+- **Depois de outubro:** 3.300 × tarifa de utilidade do Brasil.
+
+Se a tarifa ficar na casa de R$ 0,04 a R$ 0,08 por mensagem — a faixa dos
+templates de utilidade no Brasil antes da gratuidade —, isso dá algo entre
+**R$ 130 e R$ 265 por mês** nesse cliente. Sobre uma receita de R$ 890, é entre
+15% e 30% da margem.
+
+**Trate esse número como estimativa até a tabela sair.** O ponto não é o valor
+exato: é que ele deixa de ser zero e passa a ser a maior linha de custo variável
+por cliente — maior que o LLM.
+
+### Verificação de negócio e limites de envio
+
+Para produção, o cliente precisa de **Meta Business Verification**: envio de
+documentos (CNPJ, comprovante de endereço) e de 2 a 10 dias úteis de análise.
+
+Antes de verificar, o número fica limitado a 250 conversas iniciadas por empresa
+a cada 24 horas. **Isso não limita o Orbi**, porque no fluxo normal quem inicia é
+o usuário — o Orbi só responde dentro da janela que ele abriu. A verificação
+importa para o dia em que existir o Plantão (mensagem proativa às 7h).
+
+Depois de verificado, os limites sobem em degraus: 1.000 → 10.000 → 100.000 →
+ilimitado por dia.
+
 ## O prazo que você precisa marcar no calendário
 
 Até **setembro de 2026**, respostas em texto livre dentro da janela de 24 horas

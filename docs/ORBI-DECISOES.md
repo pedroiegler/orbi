@@ -183,3 +183,8 @@ As anteriores vieram do projeto. Estas vieram de bater no problema.
 - **Contexto:** quando o provedor falhava, o Runtime respondia a mensagem de fora de escopo — o usuário ouvia "isso não é algo que eu faço" quando a verdade era "não consegui nem interpretar sua pergunta".
 - **Escolha:** status e mensagem próprios (`llm_unavailable`), pedindo para tentar de novo, com alerta no canal de ops.
 - **Motivo:** o produto se sustenta em não enganar o usuário. Mentir sobre o motivo da falha é do mesmo tipo do erro de responder estoque de cache — parece inofensivo e corrói a confiança do mesmo jeito.
+
+## D-035 · Gemini `flash-lite` como modelo padrão (2026-08-25)
+- **Contexto:** medindo contra a API real, `gemini-3.7-flash` deu 20 requisições/dia e 8 a 18 s de latência; a cota é `PerProjectPerModel`, então cada modelo tem cota própria.
+- **Escolha:** `gemini-3.5-flash-lite` com `GEMINI_THINKING_BUDGET=-1`, que mede 0,9 a 3,1 s e mantém a cota do modelo maior livre.
+- **Motivo:** turno completo em 1,2 s contra o Odoo real, dentro da meta de 2 a 4 s. O modelo maior fica como reserva para quando a qualidade justificar o custo de latência.
