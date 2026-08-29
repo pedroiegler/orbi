@@ -6,34 +6,50 @@ um LLM (D-032).
 
 Decisoes que valem registro:
 
-- `mode=ANY` com a lista de tools permitidas: o modelo e obrigado a escolher uma
-  tool da lista, ou nenhuma. Combina com a regra de uma tool por turno.
+- `mode=AUTO`, sem `allowed_function_names`: o modelo escolhe uma tool da lista
+  ou responde texto. `ANY` obrigaria uma tool sempre, e o "fora de escopo"
+  deixaria de existir. A lista enviada ja contem so as tools do papel, entao
+  restringir de novo seria redundante — e a API recusa a combinacao.
 - `automatic_function_calling.disable=True`: o SDK do Google sabe executar a
   funcao sozinho. Nao aqui. Quem autoriza e executa e a Policy Layer.
 - `parameters_json_schema` em vez de `parameters`: passa o JSON Schema do
   `ToolSpec` como esta, com `additionalProperties: false`, sem traduzir.
 - `thinking_budget=0`: escolher uma tool entre quatro nao precisa de raciocinio
-  longo, e o orcamento do turno e de 800 ms.
+  longo, e o orcamento do turno e de 800 ms. Configuravel, porque os modelos
+  `lite` recusam o campo — nesses, use -1 para nao envia-lo.
+- **Prazo do turno vale mesmo assim.** A API recusa deadline abaixo de 10 s
+  ("Minimum allowed deadline is 10s"), e o orcamento do Orbi para o LLM e menor
+  que isso. Entao o prazo enviado a API e o minimo que ela aceita, e o orcamento
+  de verdade e cobrado aqui, com um vigia: se a resposta nao chegar no tempo do
+  turno, o Orbi para de esperar. Sem isso o `Deadline` teria um buraco neste
+  provedor — e um buraco no `Deadline` e um usuario esperando sem saber ate quando.
 """
 
 from __future__ import annotations
 
 import time
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeout
 from typing import Any
 
-from orbi.core.errors import LLMError, LLMTimeout
+from orbi.core.errors import ConfigurationError, LLMError, LLMTimeout
 from orbi.llm.port import LLMRequest, ToolCallEnvelope
 
 MANUFACTURER = "google"
 PROVIDER_NAME = "gemini"
-DEFAULT_MODEL = "gemini-2.5-flash"
+DEFAULT_MODEL = "gemini-3.7-flash"
 
 # USD por 1M de tokens. A camada gratuita nao cobra; os valores existem para o
 # custo por acerto do bake-off continuar comparavel entre fabricantes.
+MIN_API_DEADLINE_MS = 10_000
+"""Menor prazo que a API aceita. Abaixo disso ela recusa o pedido com 400."""
+
 PRICING: dict[str, tuple[float, float]] = {
-    "gemini-2.5-flash": (0.30, 2.50),
-    "gemini-2.5-flash-lite": (0.10, 0.40),
-    "gemini-2.5-pro": (1.25, 10.00),
+    "gemini-3.7-flash": (0.30, 2.50),
+    "gemini-3.6-flash": (0.30, 2.50),
+    "gemini-3.5-flash": (0.30, 2.50),
+    "gemini-3.5-flash-lite": (0.10, 0.40),
+    "gemini-flash-latest": (0.30, 2.50),
 }
 
 
@@ -47,11 +63,13 @@ class GeminiProvider:
         api_key: str,
         model: str = DEFAULT_MODEL,
         *,
+        thinking_budget: int = 0,
         client: Any | None = None,
     ) -> None:
         self.name = PROVIDER_NAME
         self.model = model
         self._api_key = api_key
+        self._thinking_budget = thinking_budget
         self._client = client
 
     def _ensure_client(self) -> Any:
@@ -93,28 +111,56 @@ class GeminiProvider:
             ],
             tool_config=types.ToolConfig(
                 function_calling_config=types.FunctionCallingConfig(
-                    mode=types.FunctionCallingConfigMode.AUTO,
-                    allowed_function_names=[tool["name"] for tool in request.tools],
+                    mode=types.FunctionCallingConfigMode.AUTO
                 )
             ),
             # O SDK sabe executar a funcao sozinho. Aqui, nao: quem autoriza e
             # executa e a Policy Layer.
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
-            thinking_config=types.ThinkingConfig(thinking_budget=0),
-            http_options=types.HttpOptions(timeout=request.timeout_ms),
+            # Os modelos `lite` recusam `thinking_config`; -1 omite o campo.
+            thinking_config=(
+                types.ThinkingConfig(thinking_budget=self._thinking_budget)
+                if self._thinking_budget >= 0
+                else None
+            ),
+            http_options=types.HttpOptions(
+                timeout=max(request.timeout_ms, MIN_API_DEADLINE_MS)
+            ),
         )
 
+        contents = [_as_content(message) for message in request.messages]
         try:
-            response = client.models.generate_content(
-                model=self.model,
-                contents=[_as_content(message) for message in request.messages],
-                config=config,
-            )
+            response = self._call_within_budget(client, contents, config, request.timeout_ms)
+        except FutureTimeout as exc:
+            raise LLMTimeout(
+                f"gemini nao respondeu em {request.timeout_ms} ms"
+            ) from exc
         except Exception as exc:
             raise _translate(exc) from exc
 
         latency_ms = int((time.monotonic() - started) * 1000)
         return _to_envelope(response, self.name, self.model, latency_ms)
+
+    def _call_within_budget(
+        self, client: Any, contents: list[dict[str, Any]], config: Any, budget_ms: int
+    ) -> Any:
+        """Cobra o orcamento do turno, que a API nao aceita cobrar por conta.
+
+        A requisicao abandonada continua correndo ate o prazo da API; o que o
+        Orbi garante e nao deixar o usuario esperando alem do orcamento.
+        """
+        with ThreadPoolExecutor(max_workers=1, thread_name_prefix="orbi-gemini") as pool:
+            future = pool.submit(
+                client.models.generate_content,
+                model=self.model,
+                contents=contents,
+                config=config,
+            )
+            try:
+                return future.result(timeout=budget_ms / 1000)
+            except FutureTimeout:
+                future.cancel()
+                raise
 
 
 def _as_content(message: dict[str, str]) -> dict[str, Any]:
@@ -139,7 +185,9 @@ def _to_envelope(response: Any, provider: str, model: str, latency_ms: int) -> T
         raw_args = getattr(first, "args", {}) or {}
         tool_args = dict(raw_args) if isinstance(raw_args, dict) else {}
 
-    text = _text_of(response)
+    # `response.text` avisa no log quando ha function call junto; so olhamos o
+    # texto quando nao houve escolha de tool.
+    text = None if tool_name else _text_of(response)
     finish = str(_finish_reason(response) or "")
 
     if tool_name:
@@ -199,6 +247,11 @@ def _translate(exc: Exception) -> Exception:
         return LLMTimeout(f"gemini: {name}")
     if "429" in message or "RESOURCE_EXHAUSTED" in message:
         return LLMError(f"gemini limitou as requisicoes: {name}")
+    if "400" in message or "INVALID_ARGUMENT" in message:
+        # Pedido malformado e bug nosso, nao indisponibilidade do provedor:
+        # tentar de novo ou cair no fallback nao resolve. O alerta precisa dizer
+        # isso, senao a equipe procura no lugar errado.
+        return ConfigurationError(f"gemini recusou o pedido do Orbi: {message[:200]}")
     if "Connection" in name:
         return LLMError(f"gemini indisponivel: {name}")
     return LLMError(f"gemini falhou: {name}")

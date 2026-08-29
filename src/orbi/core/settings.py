@@ -62,7 +62,9 @@ class Settings(BaseSettings):
     llm_primary: LLMProviderName = Field(default="gemini", alias="ORBI_LLM_PRIMARY")
     llm_fallback: LLMProviderName | None = Field(default=None, alias="ORBI_LLM_FALLBACK")
     gemini_api_key: SecretStr = Field(default=SecretStr(""), alias="GEMINI_API_KEY")
-    gemini_model: str = Field(default="gemini-2.5-flash", alias="GEMINI_MODEL")
+    gemini_model: str = Field(default="gemini-3.7-flash", alias="GEMINI_MODEL")
+    gemini_thinking_budget: int = Field(default=0, alias="GEMINI_THINKING_BUDGET")
+    """0 desliga o raciocinio; -1 nao envia o campo (os modelos `lite` recusam)."""
     anthropic_api_key: SecretStr = Field(default=SecretStr(""), alias="ANTHROPIC_API_KEY")
     anthropic_model: str = Field(default="claude-sonnet-5", alias="ANTHROPIC_MODEL")
     openai_api_key: SecretStr = Field(default=SecretStr(""), alias="OPENAI_API_KEY")

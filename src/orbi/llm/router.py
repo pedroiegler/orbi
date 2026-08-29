@@ -84,6 +84,7 @@ def build_provider(name: str, settings: Settings | None = None) -> LLMPort:
         return gemini_provider.build(
             api_key=resolved.gemini_api_key.get_secret_value(),
             model=resolved.gemini_model,
+            thinking_budget=resolved.gemini_thinking_budget,
         )
     if name == "anthropic":
         return anthropic_provider.build(

@@ -173,3 +173,8 @@ As anteriores vieram do projeto. Estas vieram de bater no problema.
 - **Contexto:** o bake-off dos modelos continua pendente e o produto ainda não tem receita; a camada gratuita do Google AI Studio cobre desenvolvimento e PoC.
 - **Escolha:** `gemini-2.5-flash` como primário, sem fallback declarado até existir o segundo fabricante; `mode=AUTO` com a lista de tools do papel e execução automática de função desligada no SDK.
 - **Motivo:** o Orbi pede uma coisa só do LLM — escolher uma tool de uma lista fechada — e isso o Gemini faz. Trocar de fabricante é uma linha no `.env`, porque tudo passa pelo `LLMPort`.
+
+## D-033 · O orçamento do turno é cobrado por nós, não pela API (2026-08-25)
+- **Contexto:** a API do Gemini recusa deadline abaixo de 10 s, e o orçamento do Orbi para o LLM é menor que isso — pedir 4 s devolve 400.
+- **Escolha:** enviar à API o menor prazo que ela aceita e cobrar o orçamento real com um vigia próprio, que para de esperar no tempo do turno.
+- **Motivo:** sem isso o `Deadline` teria um buraco neste provedor, e buraco no `Deadline` é usuário esperando sem saber até quando.
