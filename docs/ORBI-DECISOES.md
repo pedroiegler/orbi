@@ -178,3 +178,8 @@ As anteriores vieram do projeto. Estas vieram de bater no problema.
 - **Contexto:** a API do Gemini recusa deadline abaixo de 10 s, e o orçamento do Orbi para o LLM é menor que isso — pedir 4 s devolve 400.
 - **Escolha:** enviar à API o menor prazo que ela aceita e cobrar o orçamento real com um vigia próprio, que para de esperar no tempo do turno.
 - **Motivo:** sem isso o `Deadline` teria um buraco neste provedor, e buraco no `Deadline` é usuário esperando sem saber até quando.
+
+## D-034 · Falha do LLM não se disfarça de "fora de escopo" (2026-08-25)
+- **Contexto:** quando o provedor falhava, o Runtime respondia a mensagem de fora de escopo — o usuário ouvia "isso não é algo que eu faço" quando a verdade era "não consegui nem interpretar sua pergunta".
+- **Escolha:** status e mensagem próprios (`llm_unavailable`), pedindo para tentar de novo, com alerta no canal de ops.
+- **Motivo:** o produto se sustenta em não enganar o usuário. Mentir sobre o motivo da falha é do mesmo tipo do erro de responder estoque de cache — parece inofensivo e corrói a confiança do mesmo jeito.

@@ -1,0 +1,7 @@
+{#- O interpretador falhou. Dizer "fora de escopo" seria mentir: o Orbi nao
+    entendeu que a pergunta nao serve — ele nao conseguiu nem interpretar. -#}
+Não consegui processar sua pergunta agora. Tenta de novo em instantes.
+{% if kind == 'timeout' %}
+O interpretador demorou mais que o esperado.
+{% endif %}
+A equipe já foi avisada.
