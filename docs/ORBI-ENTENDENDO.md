@@ -1124,3 +1124,143 @@ E três perguntas que o código responde melhor que qualquer documento:
 | "Quem viu o custo do produto X no mês passado?" | `audit_logs`, filtrando por `tool_name` e `key_fields` |
 | "Que configuração autorizou esta consulta?" | `policy_version_hash` daquela linha |
 | "Esta resposta usou qual produto do ERP?" | `resolved_entity` daquela linha — e o próprio texto da resposta |
+
+---
+
+# Parte 11 — Gemini: o que foi medido de verdade
+
+A chave foi configurada e o provedor rodou contra a API real. O que a chamada
+real ensinou, e que nenhum teste com cliente simulado ensinaria:
+
+## Três defeitos que só a API revelou
+
+**1. `allowed_function_names` só vale com `mode=ANY`.** A API devolve 400. E não
+podemos usar `ANY`, porque ele **obriga** o modelo a escolher uma tool — o "fora
+de escopo" deixaria de existir. Como a lista enviada já contém só as tools do
+papel, restringir de novo era redundante.
+
+**2. A API recusa prazo abaixo de 10 segundos.** Mensagem literal: *"Manually set
+deadline 4s is too short. Minimum allowed deadline is 10s."* O orçamento do Orbi
+para o LLM é menor que isso. A saída: enviar à API o menor prazo que ela aceita e
+cobrar o orçamento real do nosso lado, com um vigia que para de esperar no tempo
+do turno. Sem isso o `Deadline` teria um buraco neste provedor.
+
+**3. Os modelos `lite` recusam o campo de raciocínio.** `thinking_budget` virou
+configuração (`-1` não envia o campo).
+
+## Os números
+
+Doze chamadas seguidas, com a pergunta variando:
+
+| Métrica | Resultado |
+|---|---|
+| Sucesso | **2 de 12** |
+| Falhas | 6 × `429 RESOURCE_EXHAUSTED` · 4 × `503 UNAVAILABLE` |
+| Latência quando respondeu | 8,5 s · 17,9 s |
+| Qualidade quando respondeu | **correta**, inclusive `check_stock(product_term="tubo pvc", location_term="filial cambe")` |
+
+Duas leituras honestas desses números:
+
+**A parte que é culpa do teste:** doze chamadas em um minuto estouram a cota por
+minuto da camada gratuita. Uso real — algumas perguntas por minuto — teria bem
+menos 429.
+
+**A parte que não é:** os 503 (*"this model is currently experiencing high
+demand"*) e a latência de 8 a 18 segundos não têm relação com a rajada. E a meta
+do produto é **2 a 4 segundos de turno inteiro**, com 800 ms de orçamento para o
+LLM.
+
+## O que isso significa para o produto
+
+O Gemini **funciona**: a escolha de tool e os argumentos vieram certos. O que a
+camada gratuita não entrega é **latência e disponibilidade** compatíveis com a
+promessa do produto.
+
+Três caminhos, e a escolha é comercial:
+
+| Caminho | Custo | Consequência |
+|---|---|---|
+| Manter grátis na PoC | R$ 0 | o cliente espera 10–20 s e vê falhas ocasionais |
+| Camada paga do Gemini | centavos por consulta | latência e cota de produção |
+| Trocar de fabricante | idem | o bake-off decide por custo **por acerto** |
+
+E é exatamente para isso que o `LLMPort` existe: trocar é uma linha no `.env`.
+
+O bake-off dos modelos continua sendo a pendência que o próprio projeto previu —
+e agora ele tem o primeiro dado real: a camada gratuita sozinha não sustenta a
+meta de latência.
+
+---
+
+# Parte 12 — WhatsApp: como conseguir o número
+
+Você perguntou como conseguir de graça. Dá, e o caminho é este.
+
+## O que a Meta oferece sem custo
+
+Ao criar um app de WhatsApp Business, a Meta dá um **número de teste**:
+
+- envia mensagem para até 5 números que você cadastra (verificados por código);
+- não precisa de cartão de crédito;
+- não precisa de empresa verificada;
+- serve para desenvolvimento e para demonstrar o produto.
+
+Ele **não** serve para produção: você não escolhe o número, ele expira, e só
+atinge os 5 destinos cadastrados. Para o cliente real, o número é **dele** — o que
+é melhor para o bolso e para a LGPD.
+
+## Passo a passo
+
+1. **Conta Meta for Developers** — `developers.facebook.com`, entrar com Facebook.
+2. **Criar app** → tipo *Business*.
+3. **Adicionar o produto WhatsApp** ao app. Aparece um número de teste e um
+   `phone_number_id`.
+4. **Cadastrar seu celular** como destinatário de teste (recebe código por SMS).
+5. **Token temporário** (24h) na mesma tela. Para não renovar toda hora, crie um
+   *System User* no Business Manager com token permanente.
+6. **Configurar o webhook**: a Meta precisa alcançar seu servidor. Em
+   desenvolvimento, use `ngrok`:
+
+```bash
+orbi serve                       # sobe o Orbi na porta 8000
+ngrok http 8000                  # devolve uma URL pública https
+```
+
+Na Meta, cadastre `https://<sua-url>.ngrok.app/webhooks/whatsapp` e o
+*verify token* — o mesmo valor que você põe em `ORBI_WHATSAPP_VERIFY_TOKEN`.
+A Meta faz uma chamada de verificação; o Orbi responde o desafio.
+
+7. **Copiar o App Secret** (Configurações → Básico) para
+   `ORBI_WHATSAPP_APP_SECRET`. Sem ele o Orbi **recusa** todo webhook em
+   produção — é o que impede alguém que descubra sua URL de falar pelo canal do
+   seu cliente.
+
+8. **Cadastrar no Orbi:**
+
+```bash
+orbi tenant add --tenant demo --name "Demo" \
+  --phone "+15550001111" --phone-number-id "<id da Meta>"
+orbi tenant set-token --tenant demo --token "<token da Meta>"
+orbi user add --tenant demo --phone "<seu celular>" --role sales_rep --name "Você"
+```
+
+Mande "quanto tem de cimento?" do seu celular para o número de teste.
+
+## O que muda no cliente real
+
+O cliente cria o app dele, ou você cria e ele vira dono. O número é dele, o token
+é dele. Você só precisa do `phone_number_id` e do token para configurar — e há
+o **warm-up**, que é etapa cronometrada do onboarding: número novo que dispara 40
+mensagens no primeiro dia é número bloqueado. O roteiro está em
+[ORBI-IMPLANTACAO.md](ORBI-IMPLANTACAO.md).
+
+## O prazo que você precisa marcar no calendário
+
+Até **setembro de 2026**, respostas em texto livre dentro da janela de 24 horas
+aberta pelo usuário são **gratuitas** — que é exatamente o fluxo do Orbi.
+
+**A partir de outubro de 2026 a Meta volta a cobrar essas mensagens**, à tarifa
+de template de utilidade de cada país. Quando a tabela do Brasil sair, três
+coisas mudam: o custo por cliente precisa ser recalculado, o teto de consultas
+por plano deixa de ser só proteção contra abuso e vira controle de margem, e os
+canais que não cobram por mensagem (Telegram, Slack) ganham peso.
