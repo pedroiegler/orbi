@@ -263,3 +263,41 @@ def test_audit_stores_arguments_as_data_not_as_a_repr(harness: Harness) -> None:
 
     assert isinstance(row.tool_args, dict)
     assert row.term == "cimento"
+
+
+# --- honestidade quando o proprio Orbi falha -----------------------------
+
+
+def test_llm_failure_is_not_disguised_as_out_of_scope(harness: Harness) -> None:
+    """Dizer "fora de escopo" quando o interpretador caiu seria mentir.
+
+    O usuario ouviria "isso nao e algo que eu faco" quando a verdade e "nao
+    consegui nem interpretar sua pergunta".
+    """
+    from orbi.core.errors import LLMTimeout
+    from orbi.llm.port import LLMRequest, ToolCallEnvelope
+    from orbi.llm.router import LLMRouter
+
+    class ProvedorCaido:
+        name = "caido"
+        manufacturer = "teste"
+        model = "nenhum"
+
+        def complete(self, request: LLMRequest) -> ToolCallEnvelope:
+            raise LLMTimeout("provedor nao respondeu")
+
+    harness.runtime._llm = LLMRouter(primary=ProvedorCaido())  # type: ignore[arg-type]
+    outcome = harness.ask("quanto tem de cimento?")
+
+    assert outcome.status == "llm_unavailable"
+    assert "fora de escopo" not in outcome.text.lower()
+    assert "consulto estoque" not in outcome.text.lower()
+    assert "tenta de novo" in outcome.text.lower()
+    assert any("LLM" in subject for subject, _ in harness.alerts)
+
+
+def test_out_of_scope_still_answers_out_of_scope(harness: Harness) -> None:
+    """A distincao so vale se o caso legitimo continuar respondendo o certo."""
+    outcome = harness.ask("qual a previsao do tempo para amanha?")
+    assert outcome.status == "out_of_scope"
+    assert "consulto" in outcome.text.lower()

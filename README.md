@@ -181,6 +181,7 @@ O detalhe não cabe aqui. Cada assunto tem seu arquivo em [`docs/`](docs/):
 | [**ORBI-ENTENDENDO.md**](docs/ORBI-ENTENDENDO.md) | **comece por aqui** — cada peça explicada, termo por termo, e o que ficou de fora |
 | [ORBI-RESUMO.md](docs/ORBI-RESUMO.md) | versão curta, para abrir sessão de desenvolvimento |
 | [ORBI-ARQUITETURA.md](docs/ORBI-ARQUITETURA.md) | mapa do código: onde cada decisão mora |
+| [ORBI-CONFIGURACAO.md](docs/ORBI-CONFIGURACAO.md) | cada variável do `.env`, cotas medidas do Gemini e receitas prontas |
 | [ORBI-CONVENCOES.md](docs/ORBI-CONVENCOES.md) | nomenclatura e **as proibições escritas como regra** |
 | [ORBI-DECISOES.md](docs/ORBI-DECISOES.md) | cada decisão em três linhas: contexto, escolha, motivo |
 | [ORBI-IMPLANTACAO.md](docs/ORBI-IMPLANTACAO.md) | roteiro cronometrado do go-live |

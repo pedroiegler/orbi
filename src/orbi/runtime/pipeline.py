@@ -22,7 +22,12 @@ from sqlalchemy.orm import Session
 
 from orbi.audit import logger as audit
 from orbi.core.deadline import Deadline, DeadlineExceeded
-from orbi.core.errors import ConfigurationError, LLMError, UnknownSenderError
+from orbi.core.errors import (
+    ConfigurationError,
+    LLMError,
+    LLMUnavailable,
+    UnknownSenderError,
+)
 from orbi.core.resilience import CircuitOpen
 from orbi.core.settings import Settings, get_settings
 from orbi.core.trace import short_code, trace_context
@@ -136,6 +141,16 @@ class OrbiRuntime:
                     latencies_ms=dict(deadline.stage_latencies_ms),
                 )
                 self._alert("turno estourou o orcamento", str(exc))
+            except LLMUnavailable as exc:
+                outcome = TurnOutcome(
+                    trace_id=trace_id,
+                    status="llm_unavailable",
+                    text=self._renderer.render(
+                        "llm_unavailable.txt.j2",
+                        {"kind": "timeout" if "respondeu em" in str(exc) else "erro"},
+                    ),
+                    latencies_ms=dict(deadline.stage_latencies_ms),
+                )
             except ConfigurationError as exc:
                 outcome = TurnOutcome(
                     trace_id=trace_id,
@@ -310,7 +325,13 @@ class OrbiRuntime:
         deadline: Deadline,
         enabled: frozenset[str],
     ) -> ToolCallEnvelope | None:
-        """Uma chamada, uma re-tentativa de esclarecimento. Nunca um loop."""
+        """Uma chamada, uma re-tentativa de esclarecimento. Nunca um loop.
+
+        Devolve `None` quando o modelo respondeu que a pergunta esta fora de
+        escopo. Quando o provedor **falha**, levanta `LLMUnavailable`: dizer
+        "fora de escopo" nesse caso seria mentir para o usuario — o Orbi nao
+        concluiu que a pergunta nao serve; ele nao conseguiu nem interpretar.
+        """
         allowed = tuple(spec for spec in tools_for_role(user.role) if spec.name in enabled)
         if not allowed:
             return None
@@ -334,7 +355,7 @@ class OrbiRuntime:
             envelope = self._llm.complete(request, deadline)
         except LLMError as exc:
             self._alert("provedores de LLM indisponiveis", str(exc))
-            return None
+            raise
 
         if envelope.has_tool_call:
             return envelope

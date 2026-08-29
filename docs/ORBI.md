@@ -1350,7 +1350,7 @@ Nenhuma decisão de projeto está em aberto. O que resta são verificações con
 | Pendência | Por quê | Quando |
 |---|---|---|
 | Limites de requisição da API do 1º ERP | Pode invalidar a meta de latência ou exigir cache | Semana 1 |
-| **Tarifa de mensagem de serviço do WhatsApp** | A Meta volta a cobrar respostas dentro da janela de 24h a partir de out/2026; tarifas publicadas até set/2026 | **Imediato** |
+| **Tarifa de mensagem de serviço do WhatsApp** | A Meta volta a cobrar respostas dentro da janela de 24h a partir de **1º/out/2026**; as tarifas do Brasil saem até **1º/set/2026** — dias. Confirmado em ago/2026. É a maior linha de custo variável por cliente depois da mudança, maior que o LLM | **esta semana** |
 | Retenção zero no provedor de LLM | Requisito eliminatório da escolha | Semana 1 |
 | Bake-off dos modelos | Os números decidem, não a opinião | Semana 2–3 |
 | Limiares calibrados | Precisa de catálogo real | Onboarding do 1º cliente |
