@@ -62,6 +62,7 @@ class ResultRenderer:
         self._environment.filters.update(
             {
                 "number": formatting.number,
+                "stock_quantity": formatting.stock_quantity,
                 "money": formatting.money,
                 "day": formatting.day,
                 "moment": formatting.moment,

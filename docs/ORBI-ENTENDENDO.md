@@ -1514,7 +1514,17 @@ confia mais em nenhuma resposta, e um assistente em que não se confia não é
 usado.
 
 **O que o template garante.** `{{ quantidade }}` é substituição de texto: o valor
-que sai é *bit a bit* o que o ERP devolveu. Não existe caminho pelo qual ele mude.
+que sai é o que o ERP devolveu, passando só por **formatação determinística** —
+separador de milhar, vírgula decimal e arredondamento por regra escrita.
+
+A distinção importa e vale dizer com precisão: o número **é formatado**, não
+regenerado. Formatar é uma regra que você pode enunciar e conferir ("duas casas,
+estoque arredonda para baixo"). Regenerar é imprevisível — às vezes sai 570, às
+vezes "cerca de 600".
+
+E a regra do estoque é assimétrica de propósito: **quantidade arredonda para
+baixo**. Um saldo de 0,996 mostrado como "1" prometeria uma unidade que não
+existe. Quem prometeu menos entrega; quem prometeu mais explica.
 
 ### 2. Corta cerca de um segundo do tempo de resposta
 

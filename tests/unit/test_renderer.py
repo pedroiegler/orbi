@@ -370,3 +370,42 @@ def test_every_template_keeps_its_line_breaks() -> None:
                     f"{path.name}:{line_number} termina em tag de bloco e perderia a "
                     f"quebra de linha: {stripped}"
                 )
+
+
+# --- arredondamento: estoque nunca promete a mais ------------------------
+
+
+def test_estoque_arredonda_para_baixo() -> None:
+    """0,996 mostrado como "1" promete uma unidade que nao existe.
+
+    Quem prometeu menos entrega; quem prometeu mais explica ao cliente.
+    """
+    from orbi.render.formatting import stock_quantity
+
+    assert stock_quantity(Decimal("0.996")) == "0,99"
+    assert stock_quantity(Decimal("99.996")) == "99,99"
+    assert stock_quantity(Decimal("575.456")) == "575,45"
+
+
+def test_estoque_inteiro_nao_ganha_casas() -> None:
+    from orbi.render.formatting import stock_quantity
+
+    assert stock_quantity(Decimal("575")) == "575"
+    assert stock_quantity(Decimal("2.5")) == "2,5"
+
+
+def test_dinheiro_mantem_arredondamento_comercial() -> None:
+    """Preco nao e estoque: aqui vale a regra comercial de arredondar ao proximo."""
+    assert money(Decimal("27.499")) == "R$ 27,50"
+    assert money(Decimal("27.495")) == "R$ 27,50"
+
+
+def test_a_resposta_de_estoque_nunca_arredonda_para_cima() -> None:
+    """O caminho inteiro, do DTO ao texto: nao pode aparecer unidade a mais."""
+    payload = _stock(locations=1)
+    payload["physical"] = Decimal("0.996")
+    payload["available"] = Decimal("0.996")
+    payload["locations"] = []
+    texto = RENDERER.render("check_stock.txt.j2", stock_view(payload))
+    assert "0,99" in texto
+    assert " 1 un" not in texto
