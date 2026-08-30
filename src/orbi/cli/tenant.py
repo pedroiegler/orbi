@@ -6,12 +6,13 @@ import uuid
 from typing import Annotated
 
 import typer
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from orbi.catalog.sync import deactivate_all
 from orbi.cli.common import console, fail, ok, resolve_tenant_id, table, warn
+from orbi.core import plans
 from orbi.core.crypto import CredentialCipher
-from orbi.db.models import Tenant, TenantSettings, TenantTool
+from orbi.db.models import Tenant, TenantSettings, TenantTool, User
 from orbi.db.seed import sync_global_config
 from orbi.db.session import admin_session, tenant_session
 from orbi.tools.registry import tool_names
@@ -31,12 +32,19 @@ def add(
     phone_number_id: Annotated[
         str, typer.Option("--phone-number-id", help="phone_number_id da Cloud API.")
     ] = "",
-    plan: Annotated[str, typer.Option("--plan", help="essencial | time | operacao")] = "essencial",
+    plan: Annotated[
+        str, typer.Option("--plan", help=f"Um de: {', '.join(plans.codigos())}")
+    ] = plans.PADRAO,
     token: Annotated[
         str, typer.Option("--token", help="Token da Cloud API. Fica cifrado no banco.")
     ] = "",
 ) -> None:
     """Cadastra um cliente. O numero e do cliente, nao do Orbi."""
+    try:
+        plano = plans.plano_de(plan)
+    except plans.PlanoDesconhecido as exc:
+        fail(str(exc))
+
     with admin_session() as session:
         sync_global_config(session)
         if session.scalars(select(Tenant).where(Tenant.slug == slug)).first():
@@ -47,7 +55,8 @@ def add(
             slug=slug,
             name=name,
             status="active",
-            plan=plan,
+            plan=plano.codigo,
+            monthly_query_cap=plano.teto_mensal,
             channel="whatsapp",
             channel_address=phone,
             channel_phone_number_id=phone_number_id or None,
@@ -61,7 +70,7 @@ def add(
         for tool in tool_names():
             session.add(TenantTool(tenant_id=tenant.id, tool_name=tool, enabled=True))
 
-    ok(f"tenant '{slug}' criado")
+    ok(f"tenant '{slug}' criado — {plano.descricao()}")
     if not token:
         warn("sem token de canal: cadastre com `orbi tenant set-token` antes do go-live")
 
@@ -116,12 +125,26 @@ def show(slug: SlugOption) -> None:
         tools = session.scalars(
             select(TenantTool).where(TenantTool.tenant_id == tenant_id)
         ).all()
+        usuarios_ativos = session.scalar(
+            select(func.count())
+            .select_from(User)
+            .where(User.tenant_id == tenant_id, User.active.is_(True))
+        ) or 0
 
     assert tenant is not None and settings is not None
     view = table(f"Tenant {tenant.slug}", ["campo", "valor"])
     view.add_row("nome", tenant.name)
     view.add_row("status", tenant.status)
-    view.add_row("plano", f"{tenant.plan} (teto {tenant.monthly_query_cap}/mes)")
+    plano = plans.plano_de(tenant.plan)
+    view.add_row(
+        "plano",
+        f"{plano.nome} · R$ {plano.mensal_brl:.2f}/mes · teto {tenant.monthly_query_cap}/mes",
+    )
+    view.add_row(
+        "usuarios",
+        f"{usuarios_ativos} de {plano.max_usuarios}"
+        + ("  ← no limite" if usuarios_ativos >= plano.max_usuarios else ""),
+    )
     view.add_row("numero", tenant.channel_address or "-")
     view.add_row("token de canal", "configurado" if tenant.channel_token_encrypted else "ausente")
     view.add_row(
@@ -137,6 +160,36 @@ def show(slug: SlugOption) -> None:
         ", ".join(f"{tool.tool_name}{'' if tool.enabled else ' (off)'}" for tool in tools) or "-",
     )
     console.print(view)
+
+
+@app.command("set-plan")
+def set_plan(
+    slug: SlugOption,
+    plan: Annotated[str, typer.Option("--plan", help=f"Um de: {', '.join(plans.codigos())}")],
+) -> None:
+    """Troca o plano do cliente e ajusta o teto de consultas."""
+    try:
+        plano = plans.plano_de(plan)
+    except plans.PlanoDesconhecido as exc:
+        fail(str(exc))
+
+    tenant_id = resolve_tenant_id(slug)
+    with admin_session() as session:
+        tenant = session.get(Tenant, tenant_id)
+        assert tenant is not None
+        usuarios = session.scalar(
+            select(func.count())
+            .select_from(User)
+            .where(User.tenant_id == tenant_id, User.active.is_(True))
+        ) or 0
+        if usuarios > plano.max_usuarios:
+            fail(
+                f"'{slug}' tem {usuarios} usuarios ativos e o plano {plano.nome} "
+                f"permite {plano.max_usuarios}. Desative usuarios antes de rebaixar."
+            )
+        tenant.plan = plano.codigo
+        tenant.monthly_query_cap = plano.teto_mensal
+    ok(f"'{slug}' agora e {plano.descricao()}")
 
 
 @app.command("activate")

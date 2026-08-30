@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import csv
+import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
 import typer
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
 from orbi.cli.common import console, fail, ok, resolve_tenant_id, table, warn
-from orbi.db.models import User, UserIdentity
+from orbi.core import plans
+from orbi.db.models import Tenant, User, UserIdentity
 from orbi.db.session import admin_session, tenant_session
 from orbi.identity import resolver as identity
 from orbi.tools.registry import ROLE_CAPABILITIES
@@ -19,6 +22,36 @@ from orbi.tools.registry import ROLE_CAPABILITIES
 app = typer.Typer(help="Usuarios e vinculo de numero.", no_args_is_help=True)
 
 ROLES = tuple(ROLE_CAPABILITIES)
+
+
+def _usuarios_ativos(session: Session, tenant_id: uuid.UUID) -> int:
+    return (
+        session.scalar(
+            select(func.count())
+            .select_from(User)
+            .where(User.tenant_id == tenant_id, User.active.is_(True))
+        )
+        or 0
+    )
+
+
+def _cabe_mais_um(session: Session, tenant_id: uuid.UUID) -> tuple[bool, str]:
+    """O limite do plano e cobrado no cadastro, nunca no meio de um turno.
+
+    Bloquear a pergunta de um vendedor ja cadastrado por causa de limite
+    comercial seria punir a pessoa errada, no pior momento.
+    """
+    tenant = session.get(Tenant, tenant_id)
+    assert tenant is not None
+    plano = plans.plano_de(tenant.plan)
+    ativos = _usuarios_ativos(session, tenant_id)
+    if plans.cabe_mais_um_usuario(tenant.plan, ativos):
+        return True, f"{ativos + 1} de {plano.max_usuarios} usuarios do plano {plano.nome}"
+    return False, (
+        f"o plano {plano.nome} permite {plano.max_usuarios} usuarios e ja ha {ativos}. "
+        f"Suba o plano com `orbi tenant set-plan --tenant <slug> --plan time` "
+        f"ou desative alguem."
+    )
 
 
 @app.command("add")
@@ -51,6 +84,10 @@ def add(
         if existing is not None:
             fail(f"o numero {phone} ja esta vinculado a outro usuario")
 
+        cabe, detalhe = _cabe_mais_um(session, tenant_id)
+        if not cabe:
+            fail(detalhe)
+
         user = User(
             tenant_id=tenant_id,
             name=name or phone,
@@ -71,7 +108,7 @@ def add(
             )
         )
 
-    ok(f"{name or phone} cadastrado como {role} em '{tenant}'")
+    ok(f"{name or phone} cadastrado como {role} em '{tenant}' — {detalhe}")
 
 
 @app.command("import")
@@ -85,6 +122,7 @@ def import_csv(
 
     tenant_id = resolve_tenant_id(tenant)
     imported = skipped = 0
+    estourou = ""
     with path.open(encoding="utf-8") as handle, admin_session() as session:
         for row in csv.DictReader(handle):
             phone = (row.get("phone") or "").strip()
@@ -99,6 +137,11 @@ def import_csv(
             ).first():
                 skipped += 1
                 continue
+
+            cabe, detalhe = _cabe_mais_um(session, tenant_id)
+            if not cabe:
+                estourou = detalhe
+                break
 
             user = User(
                 tenant_id=tenant_id,
@@ -122,6 +165,9 @@ def import_csv(
             imported += 1
 
     ok(f"{imported} usuarios importados, {skipped} ignorados")
+    if estourou:
+        warn(f"importacao parou no limite do plano: {estourou}")
+        raise typer.Exit(2)
 
 
 @app.command("list")
