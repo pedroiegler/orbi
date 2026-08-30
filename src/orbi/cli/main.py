@@ -62,6 +62,13 @@ def doctor() -> None:
         "LLM",
         f"{settings.llm_primary} → {settings.llm_fallback or 'sem fallback'}",
     )
+    from orbi.llm.pricing import modelos_sem_preco, problemas_de_producao
+
+    sem_preco = modelos_sem_preco(settings)
+    view.add_row(
+        "tabela de precos",
+        "cobre os modelos em uso" if not sem_preco else "INCOMPLETA — custo sairia zero",
+    )
     view.add_row("embeddings", settings.embedding_provider)
     view.add_row(
         "rendering",
@@ -69,7 +76,7 @@ def doctor() -> None:
     )
     console.print(view)
 
-    problems = settings.validate_for_production()
+    problems = problemas_de_producao(settings)
     if settings.is_production and problems:
         for problem in problems:
             warn(problem)

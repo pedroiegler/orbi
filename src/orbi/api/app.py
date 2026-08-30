@@ -17,6 +17,7 @@ from orbi.api import dependencies
 from orbi.channel.whatsapp import parse_webhook, verify_challenge, verify_signature
 from orbi.core.settings import get_settings
 from orbi.db.base import app_engine, ping
+from orbi.llm.pricing import problemas_de_producao
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> Any:
     settings = get_settings()
-    problems = settings.validate_for_production() if settings.is_production else []
+    problems = problemas_de_producao(settings) if settings.is_production else []
     if problems:
         # Producao nao sobe com configuracao insegura.
         raise RuntimeError("configuracao invalida para producao: " + "; ".join(problems))

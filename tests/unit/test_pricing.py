@@ -6,6 +6,8 @@ from datetime import date
 
 import pytest
 
+from orbi.core.settings import Settings
+from orbi.llm import pricing
 from orbi.llm.pricing import (
     CONFERIDO_EM,
     DESCONHECIDO,
@@ -58,3 +60,44 @@ def test_tabela_avisa_quando_envelhece() -> None:
 def test_os_tres_fabricantes_estao_representados(fabricante: str) -> None:
     """O failover exige fabricantes diferentes: a comparacao precisa dos tres."""
     assert any(p.fabricante == fabricante for p in TABELA.values())
+
+
+def test_modelo_fora_da_tabela_e_pendencia_de_producao() -> None:
+    """Custo zero em silencio e pior que custo ausente.
+
+    O turno continua funcionando de proposito — preco nao pode derrubar
+    producao. Mas o resumo diario somaria zeros com cara de medicao, e a decisao
+    de plano sairia de um numero que nao existe. O aviso vai na porta.
+    """
+    settings = Settings(
+        ORBI_ENV="production", ORBI_LLM_PRIMARY="openai", OPENAI_MODEL="gpt-inventado"
+    )
+    problemas = " ".join(pricing.problemas_de_producao(settings))
+    assert "gpt-inventado" in problemas
+    assert "zero" in problemas
+
+
+def test_modelo_conhecido_nao_gera_pendencia() -> None:
+    settings = Settings(
+        ORBI_ENV="production", ORBI_LLM_PRIMARY="openai", OPENAI_MODEL="gpt-5-mini"
+    )
+    assert pricing.modelos_sem_preco(settings) == []
+
+
+def test_modelo_de_provedor_que_nao_esta_em_uso_nao_e_cobrado() -> None:
+    """So o primario e o fallback contam: modelo configurado e nao usado nao e
+    problema de producao."""
+    settings = Settings(
+        ORBI_ENV="production",
+        ORBI_LLM_PRIMARY="gemini",
+        ANTHROPIC_MODEL="claude-que-nao-existe",
+    )
+    assert pricing.modelos_sem_preco(settings) == []
+
+
+def test_problemas_de_producao_inclui_as_regras_do_core() -> None:
+    """Doctor e o startup da API precisam chegar a mesma conclusao: duas listas
+    divergentes seriam configuracao aprovada na CLI e recusada no ar."""
+    settings = Settings(ORBI_ENV="production", ORBI_LLM_PRIMARY="rule_based")
+    problemas = pricing.problemas_de_producao(settings)
+    assert set(settings.validate_for_production()) <= set(problemas)

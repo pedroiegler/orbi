@@ -150,7 +150,6 @@ class Settings(BaseSettings):
             )
         return problems
 
-
 def _manufacturer(provider: LLMProviderName) -> str:
     """Fabricante de cada provedor.
 
