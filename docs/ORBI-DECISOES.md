@@ -198,3 +198,8 @@ As anteriores vieram do projeto. Estas vieram de bater no problema.
 - **Contexto:** cada provedor carregava a própria tabela de preços; a do Gemini estava desatualizada (0,30 onde o oficial diz 0,75), e comparar dois modelos exigia abrir dois arquivos.
 - **Escolha:** `orbi/llm/pricing.py` como fonte única, com data de conferência, e o `orbi bench` avisando quando passa de 90 dias.
 - **Motivo:** preço desatualizado leva a decisão errada com aparência de número. E a consolidação revelou que a tabela antiga listava modelos que a API já devolve 404.
+
+## D-038 · O plano vira comportamento, não etiqueta (2026-08-29)
+- **Contexto:** `--plan` era texto livre: aceitava `--plan banana`, todos os planos ficavam com o mesmo teto de consultas, e nada impedia cadastrar o sexto usuário num plano de cinco.
+- **Escolha:** tabela de planos em `core/plans.py`; o plano define o teto, o limite de usuários é cobrado no cadastro, e rebaixar plano com gente demais é recusado.
+- **Motivo:** vender "até 5 usuários" com o sistema aceitando 50 é promessa que o código não cumpre. O limite é cobrado na porta de entrada, nunca no meio de um turno — bloquear a pergunta de um vendedor já cadastrado puniria a pessoa errada no pior momento.

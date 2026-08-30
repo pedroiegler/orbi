@@ -67,11 +67,15 @@ semana; desligue depois.
 
 ## Planos e teto de consultas
 
-| Plano | Usuários | Mensal |
-|---|---|---|
-| Essencial | até 5 | R$ 490 |
-| Time | até 15 | R$ 890 |
-| Operação | até 30 | R$ 1.490 |
+| Plano | Usuários | Consultas/mês | Mensal |
+|---|---|---|---|
+| Essencial | até 5 | 3.000 | R$ 490 |
+| Time | até 15 | 10.000 | R$ 890 |
+| Operação | até 30 | 20.000 | R$ 1.490 |
+
+O plano é cumprido pelo código: define o teto de consultas e o limite de
+usuários, e o cadastro do sexto usuário num plano de cinco é recusado. A oferta
+completa está em [ORBI-COMERCIAL.md](ORBI-COMERCIAL.md).
 
 Cobra-se por usuário, não por consulta — o custo variável real é suporte, não
 token. O teto existe para conter abuso: um cliente entusiasmado sozinho dobra a
