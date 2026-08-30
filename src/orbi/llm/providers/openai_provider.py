@@ -13,15 +13,12 @@ from typing import Any
 
 from orbi.core.errors import LLMError, LLMTimeout
 from orbi.llm.port import LLMRequest, ToolCallEnvelope
+from orbi.llm.pricing import custo_usd
 
 MANUFACTURER = "openai"
 PROVIDER_NAME = "openai"
 DEFAULT_MODEL = "gpt-4.1"
 
-PRICING: dict[str, tuple[float, float]] = {
-    "gpt-4.1": (2.00, 8.00),
-    "gpt-4.1-mini": (0.40, 1.60),
-}
 
 
 class OpenAIProvider:
@@ -133,14 +130,11 @@ def _to_envelope(response: Any, provider: str, model: str, latency_ms: int) -> T
         model=model,
         tokens_in=tokens_in,
         tokens_out=tokens_out,
-        cost_usd=estimate_cost(model, tokens_in, tokens_out),
+        cost_usd=custo_usd(model, tokens_in, tokens_out),
         latency_ms=latency_ms,
     )
 
 
-def estimate_cost(model: str, tokens_in: int, tokens_out: int) -> float:
-    price_in, price_out = PRICING.get(model, (0.0, 0.0))
-    return round((tokens_in * price_in + tokens_out * price_out) / 1_000_000, 6)
 
 
 def _translate(exc: Exception) -> Exception:

@@ -56,10 +56,10 @@ class TurnMetrics:
                 / self.turns
                 if self.turns
                 else 0.0,
-                "p50_ms": _percentile(self.total_latencies, 50),
-                "p95_ms": _percentile(self.total_latencies, 95),
+                "p50_ms": percentil(self.total_latencies, 50),
+                "p95_ms": percentil(self.total_latencies, 95),
                 "stages_p50_ms": {
-                    stage: _percentile(values, 50)
+                    stage: percentil(values, 50)
                     for stage, values in self.stage_latencies.items()
                 },
                 "cost_usd": round(self.cost_usd, 6),
@@ -78,7 +78,11 @@ class TurnMetrics:
         return self.statuses[status] / self.turns if self.turns else 0.0
 
 
-def _percentile(values: list[int], percentile: int) -> int:
+def percentil(values: list[int], percentile: int) -> int:
+    """Percentil compartilhado entre metricas de operacao e bake-off.
+
+    Publico de proposito: "p95" precisa significar a mesma coisa nos dois lugares.
+    """
     if not values:
         return 0
     if percentile == 50:

@@ -19,18 +19,12 @@ from typing import Any
 
 from orbi.core.errors import LLMError, LLMTimeout
 from orbi.llm.port import LLMRequest, ToolCallEnvelope
+from orbi.llm.pricing import custo_usd
 
 MANUFACTURER = "anthropic"
 PROVIDER_NAME = "anthropic"
 DEFAULT_MODEL = "claude-opus-5"
 
-# USD por 1M de tokens. Alimenta `cost_usd` na auditoria e o custo por acerto
-# do bake-off (ORBI.md secao 12).
-PRICING: dict[str, tuple[float, float]] = {
-    "claude-opus-5": (5.00, 25.00),
-    "claude-sonnet-5": (3.00, 15.00),
-    "claude-haiku-4-5": (1.00, 5.00),
-}
 
 
 class AnthropicProvider:
@@ -144,19 +138,11 @@ def _to_envelope(response: Any, provider: str, model: str, latency_ms: int) -> T
         tokens_in=tokens_in,
         tokens_out=tokens_out,
         cached_tokens_in=cached_in,
-        cost_usd=estimate_cost(model, tokens_in, tokens_out, cached_in),
+        cost_usd=_custo(model, tokens_in, tokens_out, cached_in),
         latency_ms=latency_ms,
     )
 
 
-def estimate_cost(model: str, tokens_in: int, tokens_out: int, cached_in: int = 0) -> float:
-    price_in, price_out = PRICING.get(model, (0.0, 0.0))
-    billable_in = max(0, tokens_in - cached_in)
-    # Token lido do cache custa cerca de 10% do preco de entrada.
-    return round(
-        (billable_in * price_in + cached_in * price_in * 0.1 + tokens_out * price_out) / 1_000_000,
-        6,
-    )
 
 
 def _translate(exc: Exception) -> Exception:
@@ -172,3 +158,9 @@ def _translate(exc: Exception) -> Exception:
 
 def build(api_key: str, model: str, **kwargs: Any) -> AnthropicProvider:
     return AnthropicProvider(api_key=api_key, model=model or DEFAULT_MODEL, **kwargs)
+
+
+def _custo(model: str, tokens_in: int, tokens_out: int, cached_in: int) -> float:
+    """Converte os tokens lidos de cache na fracao que a tabela de precos espera."""
+    fracao = cached_in / tokens_in if tokens_in else 0.0
+    return custo_usd(model, tokens_in, tokens_out, cache_hit=fracao)
