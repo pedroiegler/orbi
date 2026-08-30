@@ -259,6 +259,76 @@ def evals(
     ok("todas as camadas passaram")
 
 
+@app.command("bench")
+def bench(
+    provider: Annotated[
+        str, typer.Option("--provider", help="Vazio usa o primario do .env.")
+    ] = "",
+    model: Annotated[str, typer.Option("--model", help="Vazio usa o do .env.")] = "",
+    limite: Annotated[
+        int, typer.Option("--limite", help="Casos a rodar. Camada gratuita tem cota.")
+    ] = 0,
+    cache: Annotated[
+        float, typer.Option("--cache", help="Fracao da entrada servida por prompt caching.")
+    ] = 0.0,
+    record: Annotated[bool, typer.Option("--record/--no-record")] = True,
+) -> None:
+    """Bake-off: mede acerto, latencia e custo por acerto de um modelo.
+
+    Os numeros decidem, nao a opiniao (ORBI.md secao 12). Rode uma vez por
+    modelo candidato e compare a ultima coluna.
+    """
+    from orbi.evals.bench import rodar_bench
+    from orbi.llm.pricing import CONFERIDO_EM, VALIDADE_DIAS, preco_de, tabela_velha
+    from orbi.llm.router import LLMRouter, build_provider
+
+    settings = get_settings()
+    nome = provider or settings.llm_primary
+    provedor = build_provider(nome, settings)
+    if model:
+        provedor.model = model  # type: ignore[misc]
+
+    idade = tabela_velha()
+    if idade > VALIDADE_DIAS:
+        warn(
+            f"tabela de precos conferida em {CONFERIDO_EM} ({idade} dias): "
+            "reconfira antes de decidir por custo"
+        )
+    if preco_de(provedor.model).fabricante == "desconhecido":
+        warn(f"modelo '{provedor.model}' fora da tabela de precos: o custo sai zerado")
+
+    console.print(f"medindo [bold]{provedor.model}[/bold] ({nome})...")
+    resultado = rodar_bench(
+        LLMRouter(primary=provedor),
+        limite=limite or None,
+        cache_hit=cache,
+        registrar=record,
+    )
+
+    entrada, saida = resultado.tokens_por_pergunta
+    view = table(f"Bake-off — {resultado.modelo}", ["metrica", "valor"])
+    view.add_row("casos", f"{resultado.total} ({resultado.falhas} falharam)")
+    view.add_row("acerto de tool", f"{resultado.taxa_acerto:.0%}")
+    view.add_row("acerto de argumentos", f"{resultado.taxa_args:.0%}")
+    view.add_row("latencia p50", f"{resultado.p50_ms} ms")
+    view.add_row("latencia p95", f"{resultado.p95_ms} ms")
+    view.add_row("tokens por pergunta", f"{entrada} entrada · {saida} saida")
+    view.add_row("US$ por 1.000 perguntas", f"{resultado.custo_mil_perguntas(cache):.4f}")
+    view.add_row(
+        "US$ por 1.000 ACERTOS",
+        f"{resultado.custo_por_acerto(cache):.4f}  ← e esta que decide",
+    )
+    console.print(view)
+
+    for divergencia in resultado.divergencias[:8]:
+        warn(divergencia)
+    if resultado.p95_ms > settings.deadline_total_ms:
+        warn(
+            f"p95 de {resultado.p95_ms} ms passa do orcamento do turno "
+            f"({settings.deadline_total_ms} ms): este modelo perderia respostas"
+        )
+
+
 @app.command("discovery")
 def discovery(
     tenant: Annotated[str, typer.Option("--tenant", "-t")],

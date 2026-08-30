@@ -188,3 +188,13 @@ As anteriores vieram do projeto. Estas vieram de bater no problema.
 - **Contexto:** medindo contra a API real, `gemini-3.7-flash` deu 20 requisições/dia e 8 a 18 s de latência; a cota é `PerProjectPerModel`, então cada modelo tem cota própria.
 - **Escolha:** `gemini-3.5-flash-lite` com `GEMINI_THINKING_BUDGET=-1`, que mede 0,9 a 3,1 s e mantém a cota do modelo maior livre.
 - **Motivo:** turno completo em 1,2 s contra o Odoo real, dentro da meta de 2 a 4 s. O modelo maior fica como reserva para quando a qualidade justificar o custo de latência.
+
+## D-036 · Um modelo de IA para todos os clientes (2026-08-29)
+- **Contexto:** surgiu a ideia de dar modelo diferente por plano ou por cliente. Medindo: o modelo mais caro do mercado custa R$ 29/mês num cliente de R$ 890, e o mais barato R$ 0,36 — a diferença é R$ 29.
+- **Escolha:** um modelo para todos, escolhido por acerto e latência. Plano se diferencia por número de usuários e teto de consultas, não por qualidade de IA.
+- **Motivo:** modelo por cliente triplicaria a matriz de evals e tornaria todo ticket de suporte uma investigação de "qual modelo esse cliente usa" — para economizar menos que uma hora de trabalho por mês. O suporte a modelo por tenant é barato de acrescentar no dia em que um cliente real precisar.
+
+## D-037 · Tabela de preços única, com data de validade (2026-08-29)
+- **Contexto:** cada provedor carregava a própria tabela de preços; a do Gemini estava desatualizada (0,30 onde o oficial diz 0,75), e comparar dois modelos exigia abrir dois arquivos.
+- **Escolha:** `orbi/llm/pricing.py` como fonte única, com data de conferência, e o `orbi bench` avisando quando passa de 90 dias.
+- **Motivo:** preço desatualizado leva a decisão errada com aparência de número. E a consolidação revelou que a tabela antiga listava modelos que a API já devolve 404.

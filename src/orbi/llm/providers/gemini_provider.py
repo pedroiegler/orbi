@@ -34,23 +34,15 @@ from typing import Any
 
 from orbi.core.errors import ConfigurationError, LLMError, LLMTimeout
 from orbi.llm.port import LLMRequest, ToolCallEnvelope
+from orbi.llm.pricing import custo_usd
+
+MIN_API_DEADLINE_MS = 10_000
+"""Menor prazo que a API aceita. Abaixo disso ela recusa o pedido com 400."""
 
 MANUFACTURER = "google"
 PROVIDER_NAME = "gemini"
 DEFAULT_MODEL = "gemini-3.7-flash"
 
-# USD por 1M de tokens. A camada gratuita nao cobra; os valores existem para o
-# custo por acerto do bake-off continuar comparavel entre fabricantes.
-MIN_API_DEADLINE_MS = 10_000
-"""Menor prazo que a API aceita. Abaixo disso ela recusa o pedido com 400."""
-
-PRICING: dict[str, tuple[float, float]] = {
-    "gemini-3.7-flash": (0.30, 2.50),
-    "gemini-3.6-flash": (0.30, 2.50),
-    "gemini-3.5-flash": (0.30, 2.50),
-    "gemini-3.5-flash-lite": (0.10, 0.40),
-    "gemini-flash-latest": (0.30, 2.50),
-}
 
 
 class GeminiProvider:
@@ -209,7 +201,7 @@ def _to_envelope(response: Any, provider: str, model: str, latency_ms: int) -> T
         tokens_in=tokens_in,
         tokens_out=tokens_out,
         cached_tokens_in=cached_in,
-        cost_usd=estimate_cost(model, tokens_in, tokens_out, cached_in),
+        cost_usd=_custo(model, tokens_in, tokens_out, cached_in),
         latency_ms=latency_ms,
     )
 
@@ -230,14 +222,6 @@ def _finish_reason(response: Any) -> str | None:
     return str(getattr(reason, "value", reason)) if reason is not None else None
 
 
-def estimate_cost(model: str, tokens_in: int, tokens_out: int, cached_in: int = 0) -> float:
-    price_in, price_out = PRICING.get(model, (0.0, 0.0))
-    billable_in = max(0, tokens_in - cached_in)
-    return round(
-        (billable_in * price_in + cached_in * price_in * 0.25 + tokens_out * price_out)
-        / 1_000_000,
-        6,
-    )
 
 
 def _translate(exc: Exception) -> Exception:
@@ -259,3 +243,9 @@ def _translate(exc: Exception) -> Exception:
 
 def build(api_key: str, model: str, **kwargs: Any) -> GeminiProvider:
     return GeminiProvider(api_key=api_key, model=model or DEFAULT_MODEL, **kwargs)
+
+
+def _custo(model: str, tokens_in: int, tokens_out: int, cached_in: int) -> float:
+    """Converte os tokens lidos de cache na fracao que a tabela de precos espera."""
+    fracao = cached_in / tokens_in if tokens_in else 0.0
+    return custo_usd(model, tokens_in, tokens_out, cache_hit=fracao)

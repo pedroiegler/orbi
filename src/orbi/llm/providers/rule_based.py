@@ -140,8 +140,11 @@ _LOCATION_RE = re.compile(
     r"\b(?:na|no|em|da|do)\s+(filial|matriz|deposito|loja|cd|centro de distribuicao)\s*([\w\s]*)$"
 )
 
+# Quantidade so e quantidade quando vem acompanhada de unidade de venda. Sem
+# isso, "tubo pvc 100" vira "100 unidades de tubo pvc" — o numero faz parte do
+# nome do produto, nao do pedido.
 _QUANTITY_RE = re.compile(
-    r"\b(\d+(?:[.,]\d+)?)\s*(?:un|und|unidades|sacos|sc|pecas|pcs|rolos|rl)?\b"
+    r"\b(\d+(?:[.,]\d+)?)\s*(un|und|unidades|sacos|saco|sc|pecas|peca|pcs|rolos|rolo|rl|cx|caixas|caixa)\b"
 )
 
 _CUSTOMER_LINK_RE = re.compile(r"\b(?:para|pra|do cliente|para o cliente|da empresa)\s+(.+)$")
@@ -314,10 +317,6 @@ def _extract_quantity(text: str) -> Decimal | None:
     try:
         value = Decimal(raw)
     except InvalidOperation:
-        return None
-    # Medida colada ao nome ("100mm", "2,5") nao e quantidade pedida.
-    tail = text[match.end() : match.end() + 3]
-    if tail.strip().startswith(("mm", "cm", "m ", "kg", "l ", "v", "w")):
         return None
     return value if value > 0 else None
 
