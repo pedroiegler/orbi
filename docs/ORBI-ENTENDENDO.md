@@ -1395,7 +1395,55 @@ canais que não cobram por mensagem (Telegram, Slack) ganham peso.
 
 ---
 
-# Parte 13 — Chaves, segredos e escopo: o que é de quem
+# Parte 13 — Os três papéis: quem vê o quê
+
+`sales_rep`, `finance` e `admin` são os **códigos internos** dos três papéis. Eles
+aparecem na CLI e no banco; o cliente nunca os vê — ele vê "Vendedor",
+"Financeiro" e "Administrador".
+
+| Código | Nome para o cliente | Quem é | O que consulta | O que **não** vê |
+|---|---|---|---|---|
+| `sales_rep` | Vendedor | quem vende: representante, balconista, vendedor externo | estoque, preço, último pedido | **custo, margem e títulos em aberto** |
+| `finance` | Financeiro | quem cobra: financeiro, cobrança, controladoria | títulos em aberto, último pedido, preço **com custo** | estoque |
+| `admin` | Administrador | o dono, o gerente | tudo | — |
+
+`sales_rep` vem de *sales representative* — representante de vendas. É o papel
+mais comum: num distribuidor com 12 pessoas, umas 10 são `sales_rep`.
+
+## Por que o vendedor não vê custo
+
+Não é desconfiança — é o que o cliente pede. O custo é a informação que define a
+margem do negócio, e ela costuma ser restrita a quem decide preço. Um vendedor
+com acesso ao custo pode, sem má intenção, dar um desconto baseado nele — ou
+comentar com um comprador do outro lado do balcão.
+
+Esse é o diferencial central do produto: o assistente nativo do ERP dá tudo para
+o dono e nada para a equipe. O Orbi dá a cada pessoa exatamente o que ela precisa.
+
+## Por que o financeiro não vê estoque
+
+Pela mesma lógica invertida: quem cobra não precisa de saldo de depósito. Menos
+acesso, menos superfície de erro — e menos conversa quando alguém pergunta "por
+que o financeiro consultou o estoque?".
+
+Se um cliente quiser um arranjo diferente ("meu gerente vê tudo menos custo"),
+isso é **uma linha de configuração**, não um desenvolvimento: os papéis são
+apenas presets sobre permissões menores (`stock:read`, `price:read`,
+`price:read_cost`, `invoice:read`, `customer:read`).
+
+## Como trocar o papel de alguém
+
+```bash
+orbi user set-role --phone "+5543999990001" --role finance
+```
+
+Vale no próximo turno: as ferramentas são filtradas por papel **na montagem do
+prompt**, então o modelo nem chega a ver a operação que o novo papel não pode
+chamar.
+
+---
+
+# Parte 14 — Chaves, segredos e escopo: o que é de quem
 
 Uma confusão comum, e que vale desfazer com precisão: **algumas chaves são suas,
 uma por instalação; outras são do cliente, uma por cliente.** Misturar as duas
@@ -1464,7 +1512,7 @@ importante do sistema.
 
 ---
 
-# Parte 14 — O que "o LLM não redige a resposta" quer dizer
+# Parte 15 — O que "o LLM não redige a resposta" quer dizer
 
 Você perguntou o que é "redigir". É a diferença entre duas arquiteturas, e é a
 decisão mais importante do produto.
@@ -1496,10 +1544,15 @@ escrito por ele. Isso é "redigir".
 
 O modelo nunca vê o 575. Ele nem fica sabendo qual foi a resposta.
 
-## Por que isso importa — quatro consequências, uma a uma
+## O que essa escolha te dá — quatro proteções, uma a uma
 
-Uma "consequência" aqui quer dizer: **isto deixa de poder acontecer**. Cada uma
-tem um jeito concreto de dar errado que o template elimina.
+**Atenção à leitura:** o que vem abaixo são **quatro coisas ruins que não podem
+mais acontecer** com você. Cada item descreve primeiro como daria errado *na
+outra arquitetura* — a que o Orbi não usa — e depois o que o template garante.
+
+Nenhum desses problemas existe no Orbi. Eles estão descritos justamente porque
+foram eliminados, e porque saber de qual perigo você escapou é o que te permite
+defender a decisão quando alguém sugerir "deixa a IA escrever, fica mais bonito".
 
 ### 1. O número não pode ser alterado no caminho
 
@@ -1573,9 +1626,28 @@ da consulta ao ERP**.
 
 ## Em uma frase
 
-As quatro consequências são a mesma coisa vista de quatro ângulos: **o modelo sai
-do caminho antes de os dados entrarem**. O que ele nunca vê, ele não pode alterar,
+As quatro proteções são a mesma coisa vista de quatro ângulos: **o modelo sai do
+caminho antes de os dados entrarem**. O que ele nunca vê, ele não pode alterar,
 não custa tempo, não custa dinheiro e não pode ser usado contra você.
+
+## O que você perde com essa escolha
+
+Para ser justo, existe um preço, e é este: **as respostas são mais secas.**
+
+> "CIM CP-II 50KG — 575 un disponíveis"
+
+em vez de
+
+> "Olá! Você tem 575 sacos de cimento disponíveis no estoque. Posso ajudar com
+> mais alguma coisa?"
+
+Para um vendedor consultando estoque entre duas visitas, seco é melhor — ele quer
+o número, não conversa. Mas se um dia um cliente pedir respostas mais elaboradas,
+ou se algum resultado for complexo demais para caber num template, o interruptor
+existe (`ORBI_LLM_RENDERING_ENABLED`) e a discussão pode ser reaberta com dados.
+
+O que **não** deve ser reaberto sem muito cuidado é a proteção nº 4: ligar a
+redação por IA reabre a porta da injeção de prompt.
 
 ## O flag existe, mas fica desligado
 
@@ -1591,7 +1663,7 @@ melhor — e é verificável, que importa mais.
 
 ---
 
-# Parte 15 — Como a Meta se organiza (e onde o App Secret entra)
+# Parte 16 — Como a Meta se organiza (e onde o App Secret entra)
 
 Você disse que quase não mexeu com a Meta. Então vamos do zero, porque a confusão
 sobre o App Secret vem de não conhecer a hierarquia.
