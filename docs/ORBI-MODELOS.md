@@ -196,7 +196,7 @@ número só vira quantidade quando vem com unidade de venda ("50 sacos", "10 un"
 ```bash
 ORBI_LLM_PRIMARY=rule_based
 ```
-Zero custo, zero cota, zero rede, determinístico. É o que roda nos 379 testes.
+Zero custo, zero cota, zero rede, determinístico. É o que roda na suíte inteira.
 
 ## Para PoC com cliente (hoje)
 ```bash
