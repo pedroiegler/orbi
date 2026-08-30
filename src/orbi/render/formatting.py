@@ -7,7 +7,7 @@ assim a regra vale para todos os canais e e testavel isoladamente.
 from __future__ import annotations
 
 from datetime import date, datetime
-from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from decimal import ROUND_DOWN, ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -43,6 +43,23 @@ def number(value: Any, decimals: int | None = None) -> str:
         # "2,50 un" e ruido; "2,5 un" e como a pessoa fala.
         brazilian = brazilian.rstrip("0").rstrip(",")
     return brazilian
+
+
+def stock_quantity(value: Any, decimals: int = 2) -> str:
+    """Quantidade de estoque, arredondada **para baixo**.
+
+    Dinheiro arredonda para o mais proximo; estoque, nao. Um saldo de 0,996
+    mostrado como "1" promete uma unidade que nao existe — e o vendedor descobre
+    na hora de separar a mercadoria.
+
+    Arredondar para baixo pode subestimar em fracao de unidade, o que e o erro
+    seguro: quem prometeu menos entrega; quem prometeu mais explica.
+    """
+    amount = _to_decimal(value)
+    if amount is None:
+        return "-"
+    truncado = amount.quantize(Decimal(f"0.{'0' * decimals}"), rounding=ROUND_DOWN)
+    return number(truncado)
 
 
 def money(value: Any, currency: str = "BRL") -> str:

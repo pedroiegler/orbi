@@ -203,3 +203,8 @@ As anteriores vieram do projeto. Estas vieram de bater no problema.
 - **Contexto:** `--plan` era texto livre: aceitava `--plan banana`, todos os planos ficavam com o mesmo teto de consultas, e nada impedia cadastrar o sexto usuário num plano de cinco.
 - **Escolha:** tabela de planos em `core/plans.py`; o plano define o teto, o limite de usuários é cobrado no cadastro, e rebaixar plano com gente demais é recusado.
 - **Motivo:** vender "até 5 usuários" com o sistema aceitando 50 é promessa que o código não cumpre. O limite é cobrado na porta de entrada, nunca no meio de um turno — bloquear a pergunta de um vendedor já cadastrado puniria a pessoa errada no pior momento.
+
+## D-039 · Estoque arredonda para baixo; dinheiro, para o mais próximo (2026-08-29)
+- **Contexto:** a formatação usava arredondamento comercial para tudo, então um saldo de 0,996 aparecia como "1" — uma unidade que não existe, em produto vendido por peso ou metro.
+- **Escolha:** `stock_quantity` trunca para baixo; `money` mantém o arredondamento ao mais próximo.
+- **Motivo:** é o mesmo princípio de nunca mentir sobre a base do número, aplicado à última casa decimal. Subestimar por fração é o erro seguro: quem prometeu menos entrega; quem prometeu mais explica ao cliente.
