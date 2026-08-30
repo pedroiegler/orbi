@@ -168,6 +168,12 @@ class TenantSettings(Base):
     rate_limit_per_day: Mapped[int] = mapped_column(Integer, nullable=False, default=300)
     locale: Mapped[str] = mapped_column(String(16), nullable=False, default="pt_BR")
     timezone: Mapped[str] = mapped_column(String(48), nullable=False, default="America/Sao_Paulo")
+    llm_credentials_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary)
+    """Chave de LLM **deste cliente**, cifrada (D-041). Nulo usa a global.
+
+    Existe para que o gasto de um cliente tenha teto proprio no provedor e nao
+    consuma a cota dos outros. E cifrada pela mesma `ORBI_SECRET_KEY` das
+    credenciais de ERP: segredo de cliente nunca fica em texto claro no banco."""
     updated_at: Mapped[datetime] = _now()
 
 

@@ -136,6 +136,34 @@ Sobre a escolha de modelo, veja a seção de cotas mais abaixo.
 Implementados e testados estruturalmente, sem chave. Quando você quiser o
 failover de verdade, preencha um dos dois — de fabricante diferente do primário.
 
+### A chave global e a chave de cada cliente
+
+As chaves do `.env` são as **globais**: valem para todo cliente que não tenha a
+própria. É o caso da maioria, e o normal no começo.
+
+Um cliente pode ganhar chave própria quando tiver projeto próprio no provedor
+(D-041) — o que vale a pena na OpenAI e na Anthropic, onde projeto/workspace com
+teto de gasto é nativo, e não vale no Gemini, onde a cota é por projeto do Google
+Cloud e a conta de faturamento começa limitada a cinco:
+
+```bash
+orbi tenant set-llm --tenant construtora-silva \
+  --provider openai --api-key "sk-proj-..." --model gpt-5-mini
+
+orbi tenant show --tenant construtora-silva   # mostra só os 4 últimos dígitos
+orbi tenant clear-llm --tenant construtora-silva
+```
+
+A chave é cifrada com a mesma `ORBI_SECRET_KEY` das credenciais de ERP e nunca
+aparece inteira na CLI — chave impressa num terminal vai para o histórico do
+shell e para o scrollback.
+
+**Se a chave do cliente falhar**, o turno cai para a global e é atendido: teto de
+gasto estourado não pode deixar um vendedor sem resposta no meio do expediente.
+Mas a queda **emite alerta**, e a auditoria grava qual provedor de fato atendeu.
+A consequência precisa estar clara: naquele turno o gasto volta a ser seu, então
+o teto do provedor é um corte no gasto *daquele cliente*, não um corte absoluto.
+
 ### `ORBI_LLM_RENDERING_ENABLED`
 **Mantenha `false`.** É o feature flag que permitiria o LLM redigir a resposta.
 A resposta é template a partir de dado tipado, e é isso que impede um número de

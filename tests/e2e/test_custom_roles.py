@@ -82,3 +82,34 @@ def test_restaurar_padrao_devolve_o_comportamento_original(harness: Harness) -> 
         session.commit()
 
     assert harness.ask("quanto tem de cimento?", sender=SALES).status == "ok"
+
+
+# --- chave de LLM propria (D-041) ----------------------------------------
+
+
+def test_chave_de_llm_quebrada_nao_tira_o_cliente_do_ar_mas_avisa(harness: Harness) -> None:
+    """A queda para a chave global e deliberada, e o alerta tambem.
+
+    Teto de gasto estourado ou chave revogada nao pode deixar um vendedor sem
+    resposta no meio do expediente. Mas cair em silencio transformaria o teto
+    do provedor numa protecao que ninguem sabe que falhou — e o gasto voltaria
+    a ser nosso sem que nada dissesse.
+    """
+    from orbi.db.models import TenantSettings
+    from orbi.db.session import admin_session
+
+    with admin_session() as session:
+        settings_row = session.get(TenantSettings, harness.tenant_id)
+        assert settings_row is not None
+        settings_row.llm_credentials_encrypted = b"credencial-corrompida"
+
+    resposta = harness.ask("quanto tem de cimento?")
+
+    assert resposta.status == "ok"
+    assert any("chave de LLM" in assunto for assunto, _ in harness.alerts), harness.alerts
+
+
+def test_cliente_sem_chave_propria_nao_emite_alerta_nenhum(harness: Harness) -> None:
+    """O caminho da maioria nao paga nada pela existencia da customizacao."""
+    assert harness.ask("quanto tem de cimento?").status == "ok"
+    assert not [a for a in harness.alerts if "chave de LLM" in a[0]]

@@ -36,6 +36,7 @@ from orbi.erp import connection as erp_connection
 from orbi.erp.errors import ErpAuthError, ErpError, ErpNotFound, ErpTimeout
 from orbi.erp.gateway import ErpGateway
 from orbi.identity import resolver as identity
+from orbi.llm import tenant_keys
 from orbi.llm.port import ToolCallEnvelope
 from orbi.llm.prompt import PromptBuilder, PromptContext
 from orbi.llm.router import LLMRouter
@@ -121,6 +122,23 @@ class OrbiRuntime:
         self._tracer = tracer or build_tracer(self._settings)
         self._clock = clock
 
+    def _router_for(self, credencial_cifrada: bytes | None) -> LLMRouter:
+        """O router deste cliente: o dele, se tiver chave propria (D-041).
+
+        A queda para a global **avisa**. Chave revogada ou teto de gasto
+        estourado nao pode tirar o cliente do ar no meio do expediente, mas cair
+        em silencio transformaria o teto do provedor numa protecao que ninguem
+        sabe que falhou — e o gasto voltaria a ser nosso sem que nada dissesse.
+        """
+        if credencial_cifrada is None:
+            return self._llm
+        try:
+            proprio = tenant_keys.provider_do_tenant(credencial_cifrada, self._settings)
+        except ConfigurationError as exc:
+            self._alert("chave de LLM do cliente invalida", str(exc))
+            return self._llm
+        return LLMRouter(primary=proprio, fallback=self._llm.primary, contas_distintas=True)
+
     @property
     def metrics(self) -> TurnMetrics:
         """Latencia por etapa, taxa de ambiguidade e custo acumulados."""
@@ -196,6 +214,8 @@ class OrbiRuntime:
             tenant_erp = erp_connection.build_for_tenant(session, tenant.id)
             thresholds = Thresholds.from_settings_row(settings_row)
 
+            llm = self._router_for(settings_row.llm_credentials_encrypted)
+
             # Resposta a uma desambiguacao aberta: resolve sem LLM (secao 6.10).
             choice = pending.resolve_choice(
                 session,
@@ -227,7 +247,7 @@ class OrbiRuntime:
             )
 
         envelope = self._ask_llm(
-            inbound, tenant, user, turn_context, deadline, enabled, capabilities
+            inbound, tenant, user, turn_context, deadline, enabled, capabilities, llm
         )
         if envelope is None or not envelope.has_tool_call:
             return self._out_of_scope(
@@ -351,6 +371,7 @@ class OrbiRuntime:
         deadline: Deadline,
         enabled: frozenset[str],
         capabilities: frozenset[str],
+        llm: LLMRouter,
     ) -> ToolCallEnvelope | None:
         """Uma chamada, uma re-tentativa de esclarecimento. Nunca um loop.
 
@@ -383,7 +404,7 @@ class OrbiRuntime:
         )
 
         try:
-            envelope = self._llm.complete(request, deadline)
+            envelope = llm.complete(request, deadline)
         except LLMError as exc:
             self._alert("provedores de LLM indisponiveis", str(exc))
             raise
@@ -406,7 +427,7 @@ class OrbiRuntime:
             ),
         )
         try:
-            return self._llm.complete(retry, deadline)
+            return llm.complete(retry, deadline)
         except LLMError:
             return envelope
 
