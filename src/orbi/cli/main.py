@@ -16,6 +16,7 @@ from orbi.cli import catalog as catalog_commands
 from orbi.cli import corrections as corrections_commands
 from orbi.cli import erp as erp_commands
 from orbi.cli import maintenance as maintenance_commands
+from orbi.cli import role as role_commands
 from orbi.cli import tenant as tenant_commands
 from orbi.cli import user as user_commands
 from orbi.cli.common import console, fail, ok, resolve_tenant_id, table, warn
@@ -32,6 +33,7 @@ app = typer.Typer(
 )
 app.add_typer(tenant_commands.app, name="tenant")
 app.add_typer(user_commands.app, name="user")
+app.add_typer(role_commands.app, name="role")
 app.add_typer(erp_commands.app, name="erp")
 app.add_typer(catalog_commands.app, name="catalog")
 app.add_typer(corrections_commands.app, name="corrections")

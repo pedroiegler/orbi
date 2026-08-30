@@ -1,11 +1,15 @@
 """Field Policy — a camada que quase todo projeto esquece (ORBI.md secao 6.8).
 
 Vendedor consulta preco mas nao ve custo nem margem. A filtragem acontece na
-**saida do Adapter**, por whitelist de campos por `(role, tool)`, e nao por
-instrucao de prompt — que se contorna.
+**saida do Adapter** e nao por instrucao de prompt — que se contorna.
 
-O que separa `check_price` de `check_price com custo` e esta camada, nao uma
-tool diferente (D-018).
+A whitelist e indexada por **permissao**, nao por nome de papel. `price:read_cost`
+e o que libera custo, tanto faz se o papel se chama `finance` ou
+`gerente_comercial`. E isso que permite cada cliente ter os proprios papeis sem
+mexer no codigo (D-040).
+
+O que separa `check_price` de `check_price com custo` continua sendo esta camada,
+nao uma tool diferente (D-018).
 """
 
 from __future__ import annotations
@@ -14,7 +18,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from orbi.tools.registry import CAP_PRICE_READ_COST, capabilities_for_role
+from orbi.tools.registry import CAP_PRICE_READ_COST
 
 SENSITIVE_FIELDS: frozenset[str] = frozenset({"unit_cost", "margin_percent", "cost", "margin"})
 """Campos que so aparecem para quem tem `price:read_cost`. O teste percorre a
@@ -50,8 +54,6 @@ _PRICE_FIELDS = frozenset(
     }
 )
 
-_PRICE_FIELDS_WITH_COST = _PRICE_FIELDS | {"unit_cost", "margin_percent"}
-
 _INVOICE_FIELDS = frozenset(
     {
         "erp_entity_id",
@@ -83,53 +85,67 @@ _ORDER_FIELDS = frozenset(
     }
 )
 
-FIELD_POLICY: dict[tuple[str, str], frozenset[str]] = {
-    # `finance` nao tem `stock:read` (ORBI.md secao 11): sem whitelist, a Field
-    # Policy nega por omissao e a matriz do golden test bate com o registry.
-    ("sales_rep", "check_stock"): _STOCK_FIELDS,
-    ("admin", "check_stock"): _STOCK_FIELDS,
-    ("sales_rep", "check_price"): _PRICE_FIELDS,
-    ("finance", "check_price"): _PRICE_FIELDS_WITH_COST,
-    ("admin", "check_price"): _PRICE_FIELDS_WITH_COST,
-    ("finance", "list_open_invoices"): _INVOICE_FIELDS,
-    ("admin", "list_open_invoices"): _INVOICE_FIELDS,
-    ("sales_rep", "get_last_order"): _ORDER_FIELDS,
-    ("finance", "get_last_order"): _ORDER_FIELDS,
-    ("admin", "get_last_order"): _ORDER_FIELDS,
+TOOL_FIELDS: dict[str, frozenset[str]] = {
+    "check_stock": _STOCK_FIELDS,
+    "check_price": _PRICE_FIELDS,
+    "list_open_invoices": _INVOICE_FIELDS,
+    "get_last_order": _ORDER_FIELDS,
 }
+"""Campos base de cada tool: iguais para todo mundo que pode chama-la.
+
+Tool sem entrada aqui nao tem resposta possivel — a Field Policy nega por
+omissao, e e assim que uma tool nova nao vaza campo por esquecimento."""
+
+CAPABILITY_FIELDS: dict[str, dict[str, frozenset[str]]] = {
+    "check_price": {CAP_PRICE_READ_COST: frozenset({"unit_cost", "margin_percent"})},
+}
+"""Campos que uma permissao **acrescenta**, por tool.
+
+O escopo por tool e proposital. Se a permissao acrescentasse campo em qualquer
+tool, uma tool futura cujo DTO tivesse um campo de mesmo nome passaria a mostra-lo
+sem ninguem ter revisado. Aqui, tool nova comeca sem extra nenhum."""
 
 
 class FieldPolicyError(Exception):
-    """Nao existe whitelist para esse par: falha fechada, nunca aberta."""
+    """Nao existe whitelist para essa tool: falha fechada, nunca aberta."""
 
 
-def allowed_fields(role: str, tool_name: str) -> frozenset[str]:
+def allowed_fields(capabilities: frozenset[str], tool_name: str) -> frozenset[str]:
+    """Campos visiveis para quem tem essas permissoes, nesta tool."""
     try:
-        return FIELD_POLICY[(role, tool_name)]
+        campos = TOOL_FIELDS[tool_name]
     except KeyError:
         raise FieldPolicyError(
-            f"sem whitelist de campos para ({role}, {tool_name}): "
-            "a Field Policy nega por omissao"
+            f"sem whitelist de campos para a tool '{tool_name}': a Field Policy nega por omissao"
         ) from None
 
+    for capability, extras in CAPABILITY_FIELDS.get(tool_name, {}).items():
+        if capability in capabilities:
+            campos = campos | extras
+    return campos
 
-def can_see_cost(role: str) -> bool:
-    return CAP_PRICE_READ_COST in capabilities_for_role(role)
+
+def can_see_cost(capabilities: frozenset[str]) -> bool:
+    return CAP_PRICE_READ_COST in capabilities
 
 
-def apply(role: str, tool_name: str, payload: BaseModel | list[BaseModel] | None) -> Any:
+def apply(
+    capabilities: frozenset[str],
+    tool_name: str,
+    payload: BaseModel | list[BaseModel] | None,
+) -> Any:
     """Filtra a saida do Adapter antes de qualquer renderizacao.
 
-    Devolve `dict` (ou lista de `dict`) com apenas os campos permitidos ao papel.
+    Devolve `dict` (ou lista de `dict`) com apenas os campos permitidos.
     """
-    whitelist = allowed_fields(role, tool_name)
-    show_cost = can_see_cost(role)
+    whitelist = allowed_fields(capabilities, tool_name)
+    mostra_custo = can_see_cost(capabilities)
 
     if payload is None:
         return None
     if isinstance(payload, list):
-        return [_filter_model(item, whitelist, show_cost) for item in payload]
-    return _filter_model(payload, whitelist, show_cost)
+        return [_filter_model(item, whitelist, mostra_custo) for item in payload]
+    return _filter_model(payload, whitelist, mostra_custo)
 
 
 def _filter_model(model: BaseModel, whitelist: frozenset[str], show_cost: bool) -> dict[str, Any]:

@@ -55,7 +55,7 @@ def test_only_the_session_module_touches_the_engine() -> None:
             offenders.append(relative)
 
     assert offenders == [], (
-        "estes modulos usam o engine direto em vez de `tenant_session`: " f"{offenders}"
+        f"estes modulos usam o engine direto em vez de `tenant_session`: {offenders}"
     )
 
 
@@ -222,7 +222,7 @@ def test_every_llm_request_is_built_by_the_prompt_builder() -> None:
 def test_tool_spec_artifacts_are_in_sync() -> None:
     """Um teste de CI falha se algum artefato do `ToolSpec` dessincronizar."""
     from orbi.evals.runner import load_dataset
-    from orbi.policy.field_policy import FIELD_POLICY
+    from orbi.policy.field_policy import TOOL_FIELDS
     from orbi.render.renderer import TEMPLATES_DIR
 
     for spec in all_tools():
@@ -230,8 +230,7 @@ def test_tool_spec_artifacts_are_in_sync() -> None:
         assert spec.args_model is not None
         assert (TEMPLATES_DIR / spec.template).exists(), f"{spec.name} sem template"
         assert load_dataset(spec.eval_fixture), f"{spec.name} sem fixture de eval"
-        roles = {role for (role, tool) in FIELD_POLICY if tool == spec.name}
-        assert roles, f"{spec.name} sem whitelist de campos"
+        assert spec.name in TOOL_FIELDS, f"{spec.name} sem whitelist de campos"
 
 
 def test_registered_tools_match_the_database_seed() -> None:

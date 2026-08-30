@@ -12,7 +12,7 @@ from orbi.erp.port import Invoice, PriceResult, StockLocation, StockResult
 from orbi.policy import field_policy
 from orbi.render.formatting import days_label, money, number
 from orbi.render.renderer import RenderContext, ResultRenderer, stock_view
-from orbi.tools.registry import all_tools
+from orbi.tools.registry import all_tools, capabilities_for_role
 
 RENDERER = ResultRenderer()
 
@@ -47,7 +47,7 @@ def _stock(basis: str = "available", locations: int = 2) -> dict:
         basis=basis,  # type: ignore[arg-type]
         locations=tuple(all_locations),
     )
-    payload = field_policy.apply("sales_rep", "check_stock", result)
+    payload = field_policy.apply(capabilities_for_role("sales_rep"), "check_stock", result)
     payload["code"] = "TBPVC100"
     return payload
 
@@ -124,7 +124,7 @@ def _price(role: str) -> dict:
         customer_id="9001",
         discount_percent=Decimal("5"),
     )
-    return field_policy.apply(role, "check_price", result)
+    return field_policy.apply(capabilities_for_role(role), "check_price", result)
 
 
 def test_price_for_sales_rep_never_prints_cost() -> None:
@@ -164,7 +164,9 @@ def test_invoices_are_listed_with_due_dates_and_overdue_flag() -> None:
     ]
     payload = {
         "customer_name": "CONSTRUTORA SILVA",
-        "invoices": field_policy.apply("finance", "list_open_invoices", invoices),
+        "invoices": field_policy.apply(
+            capabilities_for_role("finance"), "list_open_invoices", invoices
+        ),
         "total_open": Decimal("4820.00"),
         "overdue_count": 1,
     }
@@ -234,9 +236,7 @@ def test_unknown_sender_message_reveals_nothing() -> None:
 def test_debug_code_is_appended_only_when_asked() -> None:
     payload = stock_view(_stock())
     plain = RENDERER.render("check_stock.txt.j2", payload)
-    with_code = RENDERER.render(
-        "check_stock.txt.j2", payload, RenderContext(debug_code="7KQ2M1")
-    )
+    with_code = RENDERER.render("check_stock.txt.j2", payload, RenderContext(debug_code="7KQ2M1"))
     assert "7KQ2M1" not in plain
     assert "7KQ2M1" in with_code
 

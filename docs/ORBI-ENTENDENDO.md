@@ -337,9 +337,14 @@ O ERP devolveu tudo o que sabe sobre aquele produto — inclusive o custo. A **F
 Policy** decide quais campos aquele papel pode ver, por lista branca:
 
 ```python
-("sales_rep", "check_price") → preço, quantidade, total, cliente, desconto
-("finance",   "check_price") → tudo isso + unit_cost + margin_percent
+check_price                     → preço, quantidade, total, cliente, desconto
+check_price + "price:read_cost" → tudo isso + unit_cost + margin_percent
 ```
+
+A lista branca é indexada por **permissão**, nunca por nome de papel. Tanto faz se
+o papel se chama `finance`, `gerente_comercial` ou `diretoria`: quem libera custo
+é `price:read_cost`. É isso que deixa cada cliente ter os próprios papéis sem que
+ninguém mexa nesta camada (D-040).
 
 O que sobra é jogado fora **antes** de chegar ao template, em qualquer
 profundidade — inclusive dentro de linhas de pedido. Compare as duas respostas
@@ -1395,10 +1400,15 @@ canais que não cobram por mensagem (Telegram, Slack) ganham peso.
 
 ---
 
-# Parte 13 — Os três papéis: quem vê o quê
+# Parte 13 — Papéis: quem vê o quê
 
-`sales_rep`, `finance` e `admin` são os **códigos internos** dos três papéis. Eles
-aparecem na CLI e no banco; o cliente nunca os vê — ele vê "Vendedor",
+Todo cliente **começa** com três papéis, que servem para a maioria. Mas eles são
+o ponto de partida, não a lista fechada: cada cliente define os próprios papéis,
+com os próprios nomes e as próprias permissões, sem deploy (D-040). A seção
+"Papéis sob medida", no fim desta parte, mostra como.
+
+`sales_rep`, `finance` e `admin` são os **códigos internos** dos três padrões.
+Eles aparecem na CLI e no banco; o cliente nunca os vê — ele vê "Vendedor",
 "Financeiro" e "Administrador".
 
 | Código | Nome para o cliente | Quem é | O que consulta | O que **não** vê |
@@ -1426,10 +1436,31 @@ Pela mesma lógica invertida: quem cobra não precisa de saldo de depósito. Men
 acesso, menos superfície de erro — e menos conversa quando alguém pergunta "por
 que o financeiro consultou o estoque?".
 
-Se um cliente quiser um arranjo diferente ("meu gerente vê tudo menos custo"),
-isso é **uma linha de configuração**, não um desenvolvimento: os papéis são
-apenas presets sobre permissões menores (`stock:read`, `price:read`,
-`price:read_cost`, `invoice:read`, `customer:read`).
+## Papéis sob medida
+
+Os dois parágrafos acima descrevem o **padrão**, não uma regra. Há distribuidor
+onde o vendedor negocia margem e precisa ver custo; há onde o financeiro precisa
+de estoque para saber se vale insistir numa cobrança. Isso é decisão do cliente.
+
+Um papel é apenas um nome dado a um conjunto de permissões menores: `stock:read`,
+`price:read`, `price:read_cost`, `invoice:read`, `customer:read`. Compor as suas:
+
+```bash
+orbi role capabilities                    # o que existe para combinar
+orbi role set --tenant construtora-silva --role gerente \
+  --name "Gerente Comercial" --caps "stock:read,price:read,price:read_cost"
+orbi role show --tenant construtora-silva --role gerente
+orbi role reset --tenant construtora-silva --role gerente   # volta ao padrão
+```
+
+Três comportamentos que valem saber antes de mexer:
+
+- **a lista substitui, não soma** — não há herança do padrão, porque herança
+  silenciosa é como uma permissão sobrevive a uma remoção;
+- **papel vazio, ou papel que ninguém criou, não consulta nada** — falha fechada:
+  um código de papel inválido não concede acesso, ele tira todo o acesso;
+- **papel próprio de um cliente não existe para outro** — o nome do papel sozinho
+  já contaria como a operação do vizinho é organizada.
 
 ## Como trocar o papel de alguém
 

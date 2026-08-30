@@ -17,11 +17,24 @@ from orbi.core import plans
 from orbi.db.models import Tenant, User, UserIdentity
 from orbi.db.session import admin_session, tenant_session
 from orbi.identity import resolver as identity
+from orbi.policy import roles
 from orbi.tools.registry import ROLE_CAPABILITIES
 
 app = typer.Typer(help="Usuarios e vinculo de numero.", no_args_is_help=True)
 
 ROLES = tuple(ROLE_CAPABILITIES)
+
+
+def _validar_papel(tenant_id: uuid.UUID, role: str) -> None:
+    """O papel precisa existir **naquele cliente**, que pode ter papeis proprios."""
+    with tenant_session(tenant_id) as session:
+        papeis = roles.papeis_efetivos(session, tenant_id)
+    if role not in papeis:
+        fail(
+            f"papel '{role}' nao existe neste cliente. "
+            f"Disponiveis: {', '.join(sorted(papeis))}. "
+            f"Crie um novo com `orbi role set --tenant <slug> --role {role} --caps ...`"
+        )
 
 
 def _usuarios_ativos(session: Session, tenant_id: uuid.UUID) -> int:
@@ -65,16 +78,12 @@ def add(
     ] = "",
     verified: Annotated[
         bool,
-        typer.Option(
-            "--verified/--needs-verification", help="Marca o numero como ja confirmado."
-        ),
+        typer.Option("--verified/--needs-verification", help="Marca o numero como ja confirmado."),
     ] = True,
 ) -> None:
     """Cadastra o usuario e vincula o numero. Cadastro previo e obrigatorio."""
-    if role not in ROLES:
-        fail(f"papel invalido: {role}. Use um de: {', '.join(ROLES)}")
-
     tenant_id = resolve_tenant_id(tenant)
+    _validar_papel(tenant_id, role)
     with admin_session() as session:
         existing = session.scalars(
             select(UserIdentity).where(
@@ -203,9 +212,6 @@ def set_role(
     role: Annotated[str, typer.Option("--role", help=f"Um de: {', '.join(ROLES)}")],
 ) -> None:
     """Troca o papel de um usuario pelo numero."""
-    if role not in ROLES:
-        fail(f"papel invalido: {role}")
-
     with admin_session() as session:
         user_identity = session.scalars(
             select(UserIdentity).where(
@@ -216,6 +222,7 @@ def set_role(
             fail(f"numero {phone} nao encontrado")
         user = session.get(User, user_identity.user_id)
         assert user is not None
+        _validar_papel(user.tenant_id, role)
         user.role_code = role
     ok(f"{phone} agora e {role}")
 

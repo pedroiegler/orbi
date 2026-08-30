@@ -41,7 +41,7 @@ from orbi.llm.prompt import PromptBuilder, PromptContext
 from orbi.llm.router import LLMRouter
 from orbi.observability.metrics import TurnMetrics
 from orbi.observability.tracing import TracePort, build_tracer
-from orbi.policy import field_policy, rate_limit
+from orbi.policy import field_policy, rate_limit, roles
 from orbi.policy.decision import PolicyDecision, ReasonCode
 from orbi.policy.engine import PolicySubject, evaluate
 from orbi.render.renderer import RenderContext, ResultRenderer, stock_view
@@ -51,7 +51,7 @@ from orbi.resolution.resolver import Candidate, EntityResolver, Resolution, Thre
 from orbi.runtime import context as conversation
 from orbi.runtime import pending
 from orbi.tools.args import EntityTerm, InvalidEntityTerm
-from orbi.tools.registry import ToolSpec, get_tool, tools_for_role
+from orbi.tools.registry import ToolSpec, all_tools, get_tool
 
 SCOPE_LABEL = "estoque, preço, títulos em aberto e último pedido"
 
@@ -166,9 +166,7 @@ class OrbiRuntime:
 
     # --- fluxo -----------------------------------------------------------
 
-    def _handle(
-        self, inbound: InboundMessage, trace_id: str, deadline: Deadline
-    ) -> TurnOutcome:
+    def _handle(self, inbound: InboundMessage, trace_id: str, deadline: Deadline) -> TurnOutcome:
         tenant = identity.tenant_of(inbound.channel, inbound.to_address)
         if tenant is None:
             # Numero de destino desconhecido: nem sabemos de quem e a caixa.
@@ -190,10 +188,11 @@ class OrbiRuntime:
 
             settings_row = identity.load_settings(session, tenant.id)
             identity.touch_activity(session, user.identity_id)
-            turn_context = conversation.load(
-                session, tenant.id, user.user_id, inbound.channel
-            )
+            turn_context = conversation.load(session, tenant.id, user.user_id, inbound.channel)
             enabled = erp_connection.enabled_tools(session, tenant.id)
+            # As permissoes vem do cliente, nao do nome do papel: dois clientes
+            # podem ter um `sales_rep` com acessos diferentes (D-040).
+            capabilities = roles.capabilities_efetivas(session, tenant.id, user.role)
             tenant_erp = erp_connection.build_for_tenant(session, tenant.id)
             thresholds = Thresholds.from_settings_row(settings_row)
 
@@ -216,13 +215,30 @@ class OrbiRuntime:
 
         if choice is not None:
             return self._run_after_choice(
-                inbound, trace_id, deadline, tenant, user, choice, tenant_erp, render_context
+                inbound,
+                trace_id,
+                deadline,
+                tenant,
+                user,
+                choice,
+                tenant_erp,
+                render_context,
+                capabilities,
             )
 
-        envelope = self._ask_llm(inbound, tenant, user, turn_context, deadline, enabled)
+        envelope = self._ask_llm(
+            inbound, tenant, user, turn_context, deadline, enabled, capabilities
+        )
         if envelope is None or not envelope.has_tool_call:
             return self._out_of_scope(
-                inbound, trace_id, tenant, user, envelope, render_context, deadline
+                inbound,
+                trace_id,
+                tenant,
+                user,
+                envelope,
+                render_context,
+                deadline,
+                capabilities,
             )
 
         spec = get_tool(envelope.tool_name or "")
@@ -232,6 +248,7 @@ class OrbiRuntime:
             user_id=str(user.user_id),
             user_active=user.active,
             role=user.role,
+            capabilities=capabilities,
             needs_reverification=user.needs_reverification,
             enabled_tools=enabled,
             erp_supported_tools=frozenset(tenant_erp.capabilities.supported_tools),
@@ -252,8 +269,16 @@ class OrbiRuntime:
 
         if decision.denied:
             return self._denied(
-                inbound, trace_id, tenant, user, spec, args, decision, envelope,
-                render_context, deadline,
+                inbound,
+                trace_id,
+                tenant,
+                user,
+                spec,
+                args,
+                decision,
+                envelope,
+                render_context,
+                deadline,
             )
 
         return self._execute(
@@ -268,6 +293,7 @@ class OrbiRuntime:
             tenant_erp=tenant_erp,
             thresholds=thresholds,
             prefilled=prefilled,
+            capabilities=capabilities,
             render_context=render_context,
             turn_context=turn_context,
             settings_row=settings_row,
@@ -324,6 +350,7 @@ class OrbiRuntime:
         turn_context: conversation.TurnContext,
         deadline: Deadline,
         enabled: frozenset[str],
+        capabilities: frozenset[str],
     ) -> ToolCallEnvelope | None:
         """Uma chamada, uma re-tentativa de esclarecimento. Nunca um loop.
 
@@ -332,7 +359,11 @@ class OrbiRuntime:
         "fora de escopo" nesse caso seria mentir para o usuario — o Orbi nao
         concluiu que a pergunta nao serve; ele nao conseguiu nem interpretar.
         """
-        allowed = tuple(spec for spec in tools_for_role(user.role) if spec.name in enabled)
+        allowed = tuple(
+            spec
+            for spec in all_tools()
+            if spec.name in enabled and spec.required_capabilities <= capabilities
+        )
         if not allowed:
             return None
 
@@ -396,6 +427,7 @@ class OrbiRuntime:
         turn_context: conversation.TurnContext,
         settings_row: Any,
         prefilled: dict[str, Candidate],
+        capabilities: frozenset[str],
     ) -> TurnOutcome:
         args = decision.validated_args
         resolved: dict[str, Candidate] = dict(prefilled)
@@ -410,15 +442,35 @@ class OrbiRuntime:
 
                 if resolution.status == "AMBIGUOUS":
                     return self._ask_which_one(
-                        session, inbound, trace_id, tenant, user, spec, args,
-                        resolution, envelope, decision, render_context, deadline,
+                        session,
+                        inbound,
+                        trace_id,
+                        tenant,
+                        user,
+                        spec,
+                        args,
+                        resolution,
+                        envelope,
+                        decision,
+                        render_context,
+                        deadline,
                     )
                 if resolution.status == "NOT_FOUND":
                     if role_name == "location_term":
                         continue  # deposito nao encontrado nao invalida a consulta
                     return self._not_found(
-                        session, inbound, trace_id, tenant, user, spec, args,
-                        resolution, envelope, decision, render_context, deadline,
+                        session,
+                        inbound,
+                        trace_id,
+                        tenant,
+                        user,
+                        spec,
+                        args,
+                        resolution,
+                        envelope,
+                        decision,
+                        render_context,
+                        deadline,
                     )
                 assert resolution.entity is not None
                 resolved[role_name] = resolution.entity
@@ -437,24 +489,40 @@ class OrbiRuntime:
             payload = self._call_erp(gateway, spec, args, resolved, deadline)
         except (ErpError, CircuitOpen) as exc:
             return self._erp_failure(
-                inbound, trace_id, tenant, user, spec, args, exc, envelope, decision,
-                render_context, deadline,
+                inbound,
+                trace_id,
+                tenant,
+                user,
+                spec,
+                args,
+                exc,
+                envelope,
+                decision,
+                render_context,
+                deadline,
             )
 
         view, entity, key_fields = self._present(
-            spec, payload, user, resolved, render_context
+            spec, payload, capabilities, resolved, render_context
         )
         text = self._renderer.render(spec.template, view, render_context)
 
         with tenant_session(tenant.id) as session:
-            self._remember(
-                session, turn_context, spec, resolved, inbound.text, text, settings_row
-            )
+            self._remember(session, turn_context, spec, resolved, inbound.text, text, settings_row)
             audit.write(
                 session,
                 self._audit_record(
-                    tenant, user, trace_id, inbound, spec, _args_dict(args), decision, envelope,
-                    status="ok", deadline=deadline, entity=entity,
+                    tenant,
+                    user,
+                    trace_id,
+                    inbound,
+                    spec,
+                    _args_dict(args),
+                    decision,
+                    envelope,
+                    status="ok",
+                    deadline=deadline,
+                    entity=entity,
                     erp_payload_hash=audit.hash_payload(_dump(payload)),
                     key_fields=key_fields,
                 ),
@@ -485,6 +553,7 @@ class OrbiRuntime:
         choice: pending.PendingChoice,
         tenant_erp: erp_connection.TenantErp,
         render_context: RenderContext,
+        capabilities: frozenset[str],
     ) -> TurnOutcome:
         """O usuario respondeu "2": executa direto, sem passar pelo LLM."""
         spec = get_tool(choice.tool_name)
@@ -519,19 +588,26 @@ class OrbiRuntime:
             payload = self._call_erp(gateway, spec, args, resolved, deadline)
         except (ErpError, CircuitOpen) as exc:
             return self._erp_failure(
-                inbound, trace_id, tenant, user, spec, choice.tool_args, exc, envelope,
-                None, render_context, deadline,
+                inbound,
+                trace_id,
+                tenant,
+                user,
+                spec,
+                choice.tool_args,
+                exc,
+                envelope,
+                None,
+                render_context,
+                deadline,
             )
 
         view, entity_dict, key_fields = self._present(
-            spec, payload, user, resolved, render_context
+            spec, payload, capabilities, resolved, render_context
         )
         text = self._renderer.render(spec.template, view, render_context)
 
         with tenant_session(tenant.id) as session:
-            self._remember(
-                session, turn_context, spec, resolved, inbound.text, text, settings_row
-            )
+            self._remember(session, turn_context, spec, resolved, inbound.text, text, settings_row)
             audit.write(
                 session,
                 audit.AuditRecord(
@@ -605,12 +681,12 @@ class OrbiRuntime:
         self,
         spec: ToolSpec,
         payload: Any,
-        user: identity.UserIdentityInfo,
+        capabilities: frozenset[str],
         resolved: dict[str, Candidate],
         render_context: RenderContext,
     ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
         """Field Policy → dados do template → recibo da entidade."""
-        filtered = field_policy.apply(user.role, spec.name, payload)
+        filtered = field_policy.apply(capabilities, spec.name, payload)
         primary = resolved[_primary_role(spec)]
         entity = {
             "erp_entity_id": primary.erp_entity_id,
@@ -700,8 +776,16 @@ class OrbiRuntime:
         audit.write(
             session,
             self._audit_record(
-                tenant, user, trace_id, inbound, spec, _args_dict(args), decision, envelope,
-                status="ambiguous", deadline=deadline,
+                tenant,
+                user,
+                trace_id,
+                inbound,
+                spec,
+                _args_dict(args),
+                decision,
+                envelope,
+                status="ambiguous",
+                deadline=deadline,
                 entity={"options": [option["erp_entity_id"] for option in options]},
             ),
         )
@@ -740,8 +824,7 @@ class OrbiRuntime:
                 "term": resolution.term,
                 "entity_label": _entity_label(resolution.entity_type),
                 "suggestions": [
-                    {"name": option.name, "code": option.code}
-                    for option in resolution.options[:2]
+                    {"name": option.name, "code": option.code} for option in resolution.options[:2]
                 ],
             },
             render_context,
@@ -749,8 +832,17 @@ class OrbiRuntime:
         audit.write(
             session,
             self._audit_record(
-                tenant, user, trace_id, inbound, spec, _args_dict(args), decision, envelope,
-                status="not_found", deadline=deadline, entity={"term": resolution.term},
+                tenant,
+                user,
+                trace_id,
+                inbound,
+                spec,
+                _args_dict(args),
+                decision,
+                envelope,
+                status="not_found",
+                deadline=deadline,
+                entity={"term": resolution.term},
             ),
         )
         return TurnOutcome(
@@ -785,8 +877,16 @@ class OrbiRuntime:
             audit.write(
                 session,
                 self._audit_record(
-                    tenant, user, trace_id, inbound, spec, args, decision, envelope,
-                    status="denied", deadline=deadline,
+                    tenant,
+                    user,
+                    trace_id,
+                    inbound,
+                    spec,
+                    args,
+                    decision,
+                    envelope,
+                    status="denied",
+                    deadline=deadline,
                 ),
             )
         return TurnOutcome(
@@ -812,11 +912,13 @@ class OrbiRuntime:
         envelope: ToolCallEnvelope | None,
         render_context: RenderContext,
         deadline: Deadline,
+        capabilities: frozenset[str],
     ) -> TurnOutcome:
         """Mensagem deterministica de fora de escopo. Nunca um segundo loop."""
         examples = [
             example
-            for spec in tools_for_role(user.role)
+            for spec in all_tools()
+            if spec.required_capabilities <= capabilities
             for example in spec.examples[:1]
         ]
         text = self._renderer.render(
@@ -882,8 +984,16 @@ class OrbiRuntime:
             audit.write(
                 session,
                 self._audit_record(
-                    tenant, user, trace_id, inbound, spec, _args_dict(args), decision, envelope,
-                    status=f"erp_{kind}", deadline=deadline,
+                    tenant,
+                    user,
+                    trace_id,
+                    inbound,
+                    spec,
+                    _args_dict(args),
+                    decision,
+                    envelope,
+                    status=f"erp_{kind}",
+                    deadline=deadline,
                 ),
             )
         return TurnOutcome(
@@ -938,7 +1048,7 @@ class OrbiRuntime:
     def _fill_from_slots(
         self, args: dict[str, Any], spec: ToolSpec, turn_context: conversation.TurnContext
     ) -> tuple[dict[str, Any], dict[str, Candidate]]:
-        """"e o preco dele?" — quem resolve e o slot, nao o modelo (D-012).
+        """ "e o preco dele?" — quem resolve e o slot, nao o modelo (D-012).
 
         O slot guarda o `erp_entity_id` ja resolvido, entao o termo nem volta
         pela cascata: nao ha o que adivinhar duas vezes.
@@ -995,9 +1105,7 @@ class OrbiRuntime:
         turn_context.last_tool = spec.name
         conversation.remember_turn(turn_context, "user", question)
         conversation.remember_turn(turn_context, "assistant", answer)
-        conversation.save(
-            session, turn_context, ttl_seconds=int(settings_row.context_ttl_seconds)
-        )
+        conversation.save(session, turn_context, ttl_seconds=int(settings_row.context_ttl_seconds))
 
     def _audit_record(
         self,

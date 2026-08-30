@@ -15,13 +15,14 @@ from orbi.policy import field_policy
 from orbi.policy.decision import ReasonCode
 from orbi.policy.engine import PolicySubject, evaluate, no_rate_limit, policy_version_hash
 from orbi.policy.field_policy import FieldPolicyError
-from orbi.tools.registry import tool_names
+from orbi.tools.registry import ROLE_CAPABILITIES, capabilities_for_role, tool_names
 
 ALL_TOOLS = frozenset(tool_names())
 
 
 def _subject(role: str = "sales_rep", **overrides: object) -> PolicySubject:
     defaults: dict[str, object] = {
+        "capabilities": capabilities_for_role(role) if role in ROLE_CAPABILITIES else frozenset(),
         "tenant_id": "11111111-1111-4111-8111-111111111111",
         "tenant_status": "active",
         "user_id": "22222222-2222-4222-8222-222222222222",
@@ -70,7 +71,9 @@ def test_role_tool_matrix(pair: tuple[str, str], expected: bool) -> None:
 
 def test_matrix_covers_every_combination() -> None:
     """Se uma tool ou papel novo entrar, o golden test falha ate ser revisado."""
-    combinations = {(role, tool) for role in ("sales_rep", "finance", "admin") for tool in ALL_TOOLS}
+    combinations = {
+        (role, tool) for role in ("sales_rep", "finance", "admin") for tool in ALL_TOOLS
+    }
     assert combinations == set(EXPECTED_MATRIX)
 
 
@@ -79,7 +82,9 @@ def test_matrix_covers_every_combination() -> None:
 
 def test_inactive_tenant_is_denied_first() -> None:
     decision = evaluate(
-        _subject("admin", tenant_status="suspended"), "check_stock", _ARGS["check_stock"],
+        _subject("admin", tenant_status="suspended"),
+        "check_stock",
+        _ARGS["check_stock"],
         no_rate_limit,
     )
     assert decision.reason_code == ReasonCode.TENANT_INACTIVE
@@ -143,7 +148,9 @@ def test_rate_limit_is_the_last_check() -> None:
 
 
 def test_allowed_decision_carries_validated_args() -> None:
-    decision = evaluate(_subject("admin"), "check_price", {"product_term": "cimento"}, no_rate_limit)
+    decision = evaluate(
+        _subject("admin"), "check_price", {"product_term": "cimento"}, no_rate_limit
+    )
     assert decision.allowed
     assert decision.validated_args.product_term == "cimento"
     assert decision.policy_version_hash
@@ -172,14 +179,14 @@ def _price() -> PriceResult:
 
 
 def test_sales_rep_never_sees_cost_or_margin() -> None:
-    filtered = field_policy.apply("sales_rep", "check_price", _price())
+    filtered = field_policy.apply(capabilities_for_role("sales_rep"), "check_price", _price())
     assert "unit_cost" not in filtered
     assert "margin_percent" not in filtered
     assert filtered["unit_price"] == Decimal("38.90")
 
 
 def test_finance_sees_cost() -> None:
-    filtered = field_policy.apply("finance", "check_price", _price())
+    filtered = field_policy.apply(capabilities_for_role("finance"), "check_price", _price())
     assert filtered["unit_cost"] == Decimal("24.10")
     assert filtered["margin_percent"] == Decimal("38.05")
 
@@ -204,7 +211,7 @@ def test_no_sensitive_field_survives_at_any_depth_for_sales_rep() -> None:
             ),
         ),
     )
-    filtered = field_policy.apply("sales_rep", "get_last_order", order)
+    filtered = field_policy.apply(capabilities_for_role("sales_rep"), "get_last_order", order)
     assert not _contains_sensitive(filtered)
 
 
@@ -237,7 +244,7 @@ def test_stock_fields_pass_through_with_locations() -> None:
             ),
         ),
     )
-    filtered = field_policy.apply("sales_rep", "check_stock", stock)
+    filtered = field_policy.apply(capabilities_for_role("sales_rep"), "check_stock", stock)
     assert filtered["basis"] == "available"
     assert filtered["locations"][0]["name"] == "Matriz"
 
@@ -254,20 +261,29 @@ def test_invoices_are_filtered_as_a_list() -> None:
             due_date=__import__("datetime").date(2026, 8, 12),
         )
     ]
-    filtered = field_policy.apply("finance", "list_open_invoices", invoices)
+    filtered = field_policy.apply(capabilities_for_role("finance"), "list_open_invoices", invoices)
     assert len(filtered) == 1
     assert filtered[0]["number"] == "NF 12345"
 
 
 def test_missing_whitelist_fails_closed() -> None:
-    """Papel sem whitelist para a tool nao recebe resposta nenhuma."""
+    """Tool sem whitelist de campos nao tem resposta possivel."""
     with pytest.raises(FieldPolicyError):
-        field_policy.apply("sales_rep", "list_open_invoices", [])
+        field_policy.apply(capabilities_for_role("admin"), "tool_que_nao_existe", [])
 
 
-def test_every_allowed_pair_has_a_field_whitelist() -> None:
-    for role in ("sales_rep", "finance", "admin"):
-        for tool in ALL_TOOLS:
-            allowed = EXPECTED_MATRIX[(role, tool)]
-            has_whitelist = (role, tool) in field_policy.FIELD_POLICY
-            assert allowed == has_whitelist, f"{role} x {tool}"
+def test_every_tool_has_a_field_whitelist() -> None:
+    """Tool nova sem whitelist nao vaza campo por esquecimento: ela nega."""
+    for tool in ALL_TOOLS:
+        assert tool in field_policy.TOOL_FIELDS, tool
+
+
+def test_cost_is_unlocked_by_capability_not_by_role_name() -> None:
+    """E isso que permite papel proprio de cliente sem tocar no codigo (D-040)."""
+    sem_custo = field_policy.allowed_fields(frozenset({"price:read"}), "check_price")
+    com_custo = field_policy.allowed_fields(
+        frozenset({"price:read", "price:read_cost"}), "check_price"
+    )
+    assert "unit_cost" not in sem_custo
+    assert "unit_cost" in com_custo
+    assert sem_custo < com_custo

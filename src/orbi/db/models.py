@@ -192,9 +192,14 @@ class User(Base):
     id: UUIDPk = _uuid_pk()
     tenant_id: Mapped[uuid.UUID] = _tenant_fk()
     name: Mapped[str] = mapped_column(String(160), nullable=False)
-    role_code: Mapped[str] = mapped_column(
-        String(32), ForeignKey("roles.code", ondelete="RESTRICT"), nullable=False
-    )
+    role_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    """Codigo do papel **naquele cliente**: pode ser um dos tres padroes ou um
+    papel proprio do tenant (D-040).
+
+    Sem chave estrangeira de proposito: os papeis proprios vivem em
+    `tenant_roles`, e uma FK para a tabela global recusaria justamente eles. A
+    protecao continua existindo e e mais forte: papel desconhecido resolve para
+    **nenhuma permissao**, e a Policy Layer nega tudo — falha fechada."""
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     default_location_id: Mapped[str | None] = mapped_column(String(64))
     erp_user_ref: Mapped[str | None] = mapped_column(String(64))
@@ -234,6 +239,43 @@ class UserIdentity(Base):
 # --- ERP ------------------------------------------------------------------
 
 
+class TenantRole(Base):
+    """Papel proprio de um cliente (D-040).
+
+    Cada empresa tem processo diferente: "gerente que ve tudo menos custo",
+    "comprador que so ve estoque". Sem isso, atender o processo de um cliente
+    exigiria deploy — e o ORBI.md sempre prometeu que seria configuracao.
+
+    Quando um cliente nao define nada, valem os tres papeis padrao do codigo.
+    """
+
+    __tablename__ = "tenant_roles"
+
+    tenant_id: Mapped[uuid.UUID] = _tenant_fk(primary_key=True)
+    code: Mapped[str] = mapped_column(String(32), primary_key=True)
+    name: Mapped[str] = mapped_column(String(64), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    created_at: Mapped[datetime] = _now()
+    updated_at: Mapped[datetime] = _now()
+
+
+class TenantRoleCapability(Base):
+    """As permissoes de um papel proprio.
+
+    A lista e a definicao inteira do papel: nao ha heranca do padrao. Papel
+    customizado com a lista vazia nao consulta nada — que e o comportamento
+    seguro para quem esqueceu de preencher.
+    """
+
+    __tablename__ = "tenant_role_capabilities"
+
+    tenant_id: Mapped[uuid.UUID] = _tenant_fk(primary_key=True)
+    role_code: Mapped[str] = mapped_column(String(32), primary_key=True)
+    capability_code: Mapped[str] = mapped_column(
+        String(64), ForeignKey("capabilities.code", ondelete="RESTRICT"), primary_key=True
+    )
+
+
 class ErpConnection(Base):
     __tablename__ = "erp_connections"
 
@@ -248,9 +290,7 @@ class ErpConnection(Base):
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     capabilities_cache: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     capabilities_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    active_knowledge_model_id: Mapped[uuid.UUID | None] = mapped_column(
-        PGUUID(as_uuid=True)
-    )
+    active_knowledge_model_id: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True))
     created_at: Mapped[datetime] = _now()
     updated_at: Mapped[datetime] = _now()
 
@@ -283,9 +323,7 @@ class KnowledgeModel(Base):
 
     __table_args__ = (
         UniqueConstraint("tenant_id", "adapter", "version", name="uq_knowledge_models_version"),
-        CheckConstraint(
-            "status in ('candidate','active','archived')", name="status_valid"
-        ),
+        CheckConstraint("status in ('candidate','active','archived')", name="status_valid"),
         Index("ix_knowledge_models_tenant", "tenant_id"),
     )
 
@@ -593,6 +631,8 @@ TENANT_SCOPED_TABLES: tuple[str, ...] = (
     "users",
     "user_identities",
     "erp_connections",
+    "tenant_roles",
+    "tenant_role_capabilities",
     "knowledge_models",
     "catalog",
     "catalog_abbreviations",
