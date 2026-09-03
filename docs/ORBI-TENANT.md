@@ -63,6 +63,9 @@ orbi tenant debug --tenant construtora-silva --off
 Acrescenta o código curto do trace no rodapé da resposta. Ligue na primeira
 semana; desligue depois.
 
+O caminho de volta é `orbi trace show <código> --tenant <slug>` — sem ele o
+código sairia na resposta e não levaria a lugar nenhum.
+
 ---
 
 ## Planos e teto de consultas

@@ -15,7 +15,8 @@ Para clientes em piloto, o **modo debug** acrescenta o código curto do trace no
 rodapé da resposta:
 
 ```bash
-orbi tenant debug --tenant <slug> --on
+orbi tenant debug --tenant <slug> --on      # o código passa a sair no rodapé
+orbi trace show T6XLNJ --tenant <slug>      # e o código encontra o turno
 ```
 
 O usuário reclama citando o código e a investigação já começa pronta.

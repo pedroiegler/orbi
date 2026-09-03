@@ -18,6 +18,7 @@ from orbi.cli import erp as erp_commands
 from orbi.cli import maintenance as maintenance_commands
 from orbi.cli import role as role_commands
 from orbi.cli import tenant as tenant_commands
+from orbi.cli import trace as trace_commands
 from orbi.cli import user as user_commands
 from orbi.cli.common import console, fail, ok, resolve_tenant_id, table, warn
 from orbi.core.crypto import CredentialCipher
@@ -38,6 +39,7 @@ app.add_typer(erp_commands.app, name="erp")
 app.add_typer(catalog_commands.app, name="catalog")
 app.add_typer(corrections_commands.app, name="corrections")
 app.add_typer(maintenance_commands.app, name="maintenance")
+app.add_typer(trace_commands.app, name="trace")
 
 
 @app.command("doctor")

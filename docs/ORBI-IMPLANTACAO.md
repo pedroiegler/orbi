@@ -106,8 +106,26 @@ A terceira pergunta é a mais importante: o vendedor **não pode** ver título.
 orbi tenant debug --tenant construtora-silva --on
 ```
 
-A resposta passa a trazer o código curto do trace no rodapé. O usuário reclama
-citando o código e a investigação já começa pronta. Desligue ao fim do piloto.
+A resposta passa a trazer o código curto do trace no rodapé:
+
+```
+CIM CP-II 50KG (CIMCP2) — 575 Units disponíveis
+
+_ref T6XLNJ_
+```
+
+O cliente cita o código, e o comando devolve o turno inteiro:
+
+```bash
+orbi trace show T6XLNJ --tenant construtora-silva
+```
+
+Quem perguntou, a pergunta literal, a tool escolhida, **qual produto foi
+resolvido e por qual etapa da cascata**, a decisão da policy, a latência por
+etapa e o hash do que o ERP devolveu. A busca corre dentro da sessão do cliente,
+então o código de um cliente não encontra turno de outro.
+
+Desligue ao fim do piloto.
 
 ---
 
