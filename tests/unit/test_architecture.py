@@ -416,3 +416,34 @@ def test_the_cron_does_not_parse_a_drawn_table() -> None:
     comandos = "\n".join(_crontab_lines())
     assert "awk" not in comandos, "o cron voltou a parsear tabela; use `--slugs`"
     assert "--slugs" in comandos
+
+
+CONVENCOES = ROOT / "docs" / "ORBI-CONVENCOES.md"
+
+
+def test_every_prohibition_points_at_a_test_that_exists() -> None:
+    """A tabela de proibicoes e a unica coisa que as torna auditaveis.
+
+    Oito dos quinze ponteiros apontavam para arquivos que nunca existiram
+    (`test_pii.py`, `test_field_policy.py`, `test_import_lint.py`...). Os testes
+    existiam — em outros arquivos — mas quem fosse conferir "o Orbi nao envia PII
+    ao LLM" abriria o caminho citado, nao acharia nada, e concluiria com razao
+    que a garantia era ficcao.
+
+    Um ponteiro quebrado aqui e pior que ponteiro nenhum: ele parece prova.
+    """
+    texto = CONVENCOES.read_text(encoding="utf-8")
+    referencias = re.findall(
+        r"((?:unit|integration|e2e|conformance)/[a-z_]+\.py)::(test_[a-z_]+)", texto
+    )
+    assert referencias, "a tabela de proibicoes perdeu os ponteiros"
+
+    quebrados: list[str] = []
+    for arquivo, teste in referencias:
+        caminho = ROOT / "tests" / arquivo
+        if not caminho.exists():
+            quebrados.append(f"{arquivo} (arquivo)")
+        elif f"def {teste}(" not in caminho.read_text(encoding="utf-8"):
+            quebrados.append(f"{arquivo}::{teste}")
+
+    assert quebrados == [], f"proibicao sem guarda: {quebrados}"

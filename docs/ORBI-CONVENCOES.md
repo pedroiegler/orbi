@@ -12,21 +12,26 @@ mesmo que funcione.
 
 | # | Proibição | Onde o teste garante |
 |---|---|---|
-| P1 | **Não criar tool de busca de produto/cliente.** A resolução de entidade é interna ao Runtime. | `tests/unit/test_tool_registry.py::test_no_search_tool` |
-| P2 | **Não deixar o LLM redigir a resposta final.** Toda saída passa pelo `ResultRenderer`. | `tests/unit/test_renderer.py` |
-| P3 | **Não cachear estoque.** ERP fora do ar responde falha, nunca número velho. | `tests/unit/test_erp_gateway.py::test_no_stock_cache` |
-| P4 | **Não permitir que o LLM emita identificadores.** `EntityTerm` rejeita. | `tests/unit/test_entity_term.py` |
-| P5 | **Não acessar o banco do ERP, não instalar agente, não fazer scraping.** Só `integration_mode="official_api"`. | Conformance Kit |
-| P6 | **Não usar o engine do SQLAlchemy diretamente.** Só a dependency que emite `SET LOCAL app.tenant_id`. | `tests/unit/test_import_lint.py` |
-| P7 | **Não esconder campo por instrução de prompt.** Só Field Policy na saída do Adapter. | `tests/unit/test_field_policy.py` |
-| P8 | **Não fazer mais de uma chamada de tool por turno.** Sem loop de agente no Runtime. | `tests/unit/test_runtime_single_shot.py` |
-| P9 | **Não enviar PII ao LLM.** `PIIRedactor` antes de qualquer envio. | `tests/unit/test_pii.py` |
-| P10 | **Não colocar `if erp == "x"` no Core.** Diferença de ERP vive no Adapter + `capabilities()`. | `tests/unit/test_import_lint.py` |
-| P11 | **Não mentir sobre a base do número de estoque.** `basis` sempre declarado no texto. | `tests/unit/test_renderer.py` |
-| P12 | **Não escrever no ERP.** MVP é somente leitura; o Protocol não tem método de escrita. | `tests/unit/test_erp_port.py` |
+| P1 | **Não criar tool de busca de produto/cliente.** A resolução de entidade é interna ao Runtime. | `unit/test_architecture.py::test_no_entity_search_tool_can_be_registered` · `unit/test_tools.py::test_no_entity_search_tool_exists` |
+| P2 | **Não deixar o LLM redigir a resposta final.** Toda saída passa pelo `ResultRenderer`. | `unit/test_architecture.py::test_llm_rendering_is_off_by_default` e `::test_the_renderer_does_not_import_the_llm` |
+| P3 | **Não cachear estoque.** ERP fora do ar responde falha, nunca número velho. | `unit/test_erp_gateway.py::test_no_stock_cache` · `unit/test_architecture.py::test_no_cache_in_the_erp_path` |
+| P4 | **Não permitir que o LLM emita identificadores.** `EntityTerm` rejeita. | `unit/test_tools.py::test_entity_term_rejects_identifiers` · `e2e/test_turn.py::test_identifier_in_the_question_does_not_become_an_argument` |
+| P5 | **Não acessar o banco do ERP, não instalar agente, não fazer scraping.** Só `integration_mode="official_api"`. | `conformance/test_adapter_conformance.py::test_integration_mode_is_official_api` |
+| P6 | **Não usar o engine do SQLAlchemy diretamente.** Só a sessão que emite `SET LOCAL app.tenant_id`. | `unit/test_architecture.py::test_only_the_session_module_touches_the_engine` |
+| P7 | **Não esconder campo por instrução de prompt.** Só Field Policy na saída do Adapter. | `unit/test_policy.py::test_cost_is_unlocked_by_capability_not_by_role_name` e vizinhos |
+| P8 | **Não fazer mais de uma chamada de tool por turno.** Sem loop de agente no Runtime. | `e2e/test_single_shot.py` — conta as chamadas reais ao LLM e ao ERP |
+| P9 | **Não enviar PII ao LLM.** `PIIRedactor` antes de qualquer envio. | `unit/test_llm.py::test_redactor_masks_personal_data` e vizinhos |
+| P10 | **Não colocar `if erp == "x"` no Core.** Diferença de ERP vive no Adapter + `capabilities()`. | `unit/test_architecture.py::test_no_module_branches_on_the_erp_name` |
+| P11 | **Não mentir sobre a base do número de estoque.** `basis` sempre declarado no texto. | `conformance/…::test_stock_basis_matches_capabilities` · `e2e/test_turn.py::test_stock_question_answers_with_the_entity_and_the_basis` |
+| P12 | **Não escrever no ERP.** MVP é somente leitura; o Protocol não tem método de escrita. | `unit/test_erp_gateway.py::test_protocol_has_no_write_methods` · `unit/test_architecture.py::test_no_adapter_exposes_a_write_method` |
 | P13 | **Não editar migration já aplicada.** Nova migration sempre. | revisão humana |
-| P14 | **Não guardar payload bruto do ERP na auditoria.** Só hash + campos-chave. | `tests/unit/test_audit.py` |
+| P14 | **Não guardar payload bruto do ERP na auditoria.** Só hash + campos-chave. | `integration/test_audit.py::test_audit_never_stores_the_raw_erp_payload` |
 | P15 | **Não adicionar Redis, fila, worker ou serviço novo** sem um gatilho medido (ver ORBI.md §18). | revisão humana |
+| P16 | **Não colocar `if tenant == "x"` em lugar nenhum.** Diferença entre clientes vive em linha de tabela — papel próprio, tool ligada, alias, limiar, chave de LLM. | `unit/test_architecture.py::test_no_module_branches_on_the_tenant` |
+| P17 | **Não deixar tabela com `tenant_id` sem RLS forçado**, nem criar tabela sem `tenant_id` que guarde dado de cliente. | `integration/test_rls.py::test_toda_tabela_com_tenant_id_tem_rls_forcado` e `::test_tabelas_globais_sao_exatamente_as_esperadas` |
+
+Os caminhos são relativos a `tests/`. Se um deles não existir, **a proibição
+perdeu o guarda** — e é isso que essa coluna serve para revelar.
 
 ---
 
