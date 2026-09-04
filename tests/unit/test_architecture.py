@@ -10,12 +10,14 @@ from __future__ import annotations
 import ast
 import re
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from orbi.tools.registry import FORBIDDEN_TOOL_PATTERNS, all_tools, tool_names
 
-SRC = Path(__file__).resolve().parents[2] / "src" / "orbi"
+ROOT = Path(__file__).resolve().parents[2]
+SRC = ROOT / "src" / "orbi"
 
 CORE_PACKAGES = {"core", "db", "tools"}
 """Camadas de baixo: nao podem importar camadas de cima."""
@@ -341,3 +343,76 @@ def test_env_example_carries_no_real_secret() -> None:
         valor = valor.split("#")[0].strip()
         if any(marca in chave for marca in ("KEY", "SECRET", "TOKEN", "PASSWORD")):
             assert valor in {"", "change-me"}, f"{chave} tem valor no exemplo"
+
+
+# --- as rotinas de operacao ----------------------------------------------
+
+CRONTAB = ROOT / "docker" / "crontab"
+
+
+def _crontab_lines() -> list[str]:
+    """Linhas de comando do cron, sem comentario — comentario explica, nao roda."""
+    return [
+        linha
+        for linha in CRONTAB.read_text(encoding="utf-8").splitlines()
+        if linha.strip() and not linha.lstrip().startswith("#")
+    ]
+
+
+def _crontab_commands() -> list[str]:
+    """Os comandos `orbi ...` que o cron executa."""
+    return [
+        trecho.strip()
+        for linha in _crontab_lines()
+        for trecho in re.findall(r"orbi ((?:[a-z-]+ )*[a-z-]+(?: --[a-z-]+)*)", linha)
+    ]
+
+
+def test_every_cron_command_exists_in_the_cli() -> None:
+    """Cron que chama comando inexistente falha as 3h e ninguem ve.
+
+    A versao anterior deste arquivo chamava `orbi tenant list --quiet`, que
+    nunca existiu, e extraia o slug de uma tabela desenhada com `awk` — a borda
+    virava item vazio e nome quebrado em duas linhas virava `|`. Funcionava o
+    suficiente para parecer certo e falhava uma vez por cliente, toda noite.
+    """
+    from typer.main import get_command
+
+    from orbi.cli.main import app
+
+    raiz = get_command(app)
+    faltando: list[str] = []
+    for comando in _crontab_commands():
+        partes = comando.split()
+        atual: Any = raiz
+        for parte in partes:
+            if parte.startswith("--"):
+                # `secondary_opts` e o lado negativo de um par como
+                # `--dry-run/--apply`: as duas metades sao a mesma flag.
+                nomes = {
+                    opcao
+                    for parametro in getattr(atual, "params", [])
+                    for atributo in ("opts", "secondary_opts")
+                    for opcao in getattr(parametro, atributo, [])
+                }
+                if parte not in nomes:
+                    faltando.append(f"{comando} (flag {parte})")
+                break
+            proximo = getattr(atual, "commands", {}).get(parte)
+            if proximo is None:
+                faltando.append(f"{comando} (subcomando {parte})")
+                break
+            atual = proximo
+
+    assert faltando == [], f"o cron chama o que a CLI nao tem: {faltando}"
+
+
+def test_the_cron_does_not_parse_a_drawn_table() -> None:
+    """Saida para humano e para maquina sao coisas diferentes.
+
+    `--slugs` existe exatamente para isso. Voltar ao `awk` sobre a tabela
+    reintroduziria uma falha por cliente por noite.
+    """
+    comandos = "\n".join(_crontab_lines())
+    assert "awk" not in comandos, "o cron voltou a parsear tabela; use `--slugs`"
+    assert "--slugs" in comandos

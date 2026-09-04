@@ -148,10 +148,32 @@ def clear_llm(slug: SlugOption) -> None:
 
 
 @app.command("list")
-def list_tenants() -> None:
-    """Lista os clientes."""
+def list_tenants(
+    slugs: Annotated[
+        bool,
+        typer.Option("--slugs", help="So os slugs, um por linha. Para scripts e cron."),
+    ] = False,
+    ativos: Annotated[
+        bool, typer.Option("--ativos/--todos", help="Filtra por status ativo.")
+    ] = False,
+) -> None:
+    """Lista os clientes.
+
+    `--slugs` existe porque o cron precisa de uma lista, e extrair slug de uma
+    tabela desenhada com `awk` nao funciona: a borda vira um item vazio e o nome
+    que quebra em duas linhas vira um item `|`. Cada cliente novo acrescentava
+    uma falha por noite no log — e log com falha rotineira e log que ninguem le.
+    """
     with admin_session() as session:
-        tenants = session.scalars(select(Tenant).order_by(Tenant.created_at)).all()
+        consulta = select(Tenant).order_by(Tenant.created_at)
+        if ativos:
+            consulta = consulta.where(Tenant.status == "active")
+        tenants = session.scalars(consulta).all()
+
+    if slugs:
+        for tenant in tenants:
+            print(tenant.slug)
+        return
 
     if not tenants:
         warn("nenhum tenant cadastrado")

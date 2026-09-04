@@ -3,11 +3,18 @@
 SHELL=/bin/sh
 PATH=/opt/venv/bin:/usr/local/bin:/usr/bin:/bin
 
+# `orbi tenant list --slugs --ativos` devolve um slug por linha, sem
+# formatacao. Extrair slug da tabela desenhada com `awk` nao funcionava: a
+# borda virava item vazio e nome que quebra em duas linhas virava um item `|`,
+# entao cada cliente acrescentava uma falha por noite no log.
+# Cliente inativo fica de fora de proposito — sincronizar catalogo de quem
+# cancelou gasta chamada de ERP e embedding sem servir a ninguem.
+
 # Sync completo do catalogo, de madrugada (03:00 em Sao Paulo).
-0 6 * * * orbi tenant list --quiet 2>/dev/null; for t in $(orbi tenant list 2>/dev/null | awk 'NR>3 {print $2}'); do orbi catalog sync --tenant "$t"; done >> /var/log/orbi-sync.log 2>&1
+0 6 * * * orbi tenant list --slugs --ativos | while read -r t; do orbi catalog sync --tenant "$t"; done >> /var/log/orbi-sync.log 2>&1
 
 # Incremental a cada 4 horas.
-0 */4 * * * for t in $(orbi tenant list 2>/dev/null | awk 'NR>3 {print $2}'); do orbi catalog sync --tenant "$t" --mode incremental; done >> /var/log/orbi-sync.log 2>&1
+0 */4 * * * orbi tenant list --slugs --ativos | while read -r t; do orbi catalog sync --tenant "$t" --mode incremental; done >> /var/log/orbi-sync.log 2>&1
 
 # Resumo diario no canal de ops, as 7h de Sao Paulo.
 0 10 * * * orbi maintenance daily-summary --send >> /var/log/orbi-ops.log 2>&1
