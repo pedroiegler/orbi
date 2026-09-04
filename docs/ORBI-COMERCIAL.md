@@ -169,9 +169,30 @@ qual produto foi usado, então erro vira visível e corrigível.
 a cada pergunta — não há cache. Mas se o ERP do cliente estiver desatualizado, a
 resposta reflete isso. A fonte da verdade continua sendo o ERP dele.
 
-**Nunca omita o que o número de WhatsApp custa.** Ele é do cliente, e a partir de
-outubro de 2026 as mensagens têm custo. Dizer isso na venda evita a conversa ruim
-em novembro.
+**Nunca omita o que o número de WhatsApp custa.** A partir de outubro de 2026 as
+mensagens dentro da janela de 24 h voltam a ter custo. Dizer isso na venda evita
+a conversa ruim em novembro.
+
+### As duas origens de número (D-043)
+
+O cliente escolhe, e as duas são oferecidas de verdade:
+
+| | **Número dele** | **Número nosso** |
+|---|---|---|
+| Como | ele verifica o CNPJ no Business Portfolio e libera nosso acesso | criamos e operamos para ele |
+| Prazo para subir | horas, **se** o portfólio já estiver verificado | imediato |
+| Se não estiver verificado | dias a semanas, com documento | — |
+| Na saída | ele leva o número e a conversa | precisa migrar |
+| Risco de portfólio | dele | **nosso** |
+
+A frase para a venda: *"Você prefere que o número fique na sua conta da Meta ou
+na nossa? Na sua, você tem o controle e leva o número se um dia sair. Na nossa,
+sobe hoje."*
+
+O que **não** dizer: que tanto faz. Portfólio da Meta desabilitado trava todas as
+WABAs dentro dele — então cada cliente que hospedarmos deve ficar em portfólio
+separado, e essa é uma conta que cresce. Quando hospedar deixar de ser exceção,
+ela precisa de preço próprio.
 
 ---
 

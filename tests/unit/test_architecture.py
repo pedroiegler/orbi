@@ -97,6 +97,34 @@ def test_no_module_branches_on_the_erp_name() -> None:
     assert offenders == [], f"condicional por ERP fora do adapter: {offenders}"
 
 
+def test_no_module_branches_on_the_tenant() -> None:
+    """A regra que sustenta a resposta a "pode customizar para um cliente?".
+
+    Diferenca entre clientes vive em **linha de tabela**, nunca em ramo de
+    codigo: papel proprio, tool ligada ou desligada, alias, limiar calibrado,
+    chave de LLM. Tudo isso e dado.
+
+    Um `if tenant == "construtora-silva"` seria o primeiro de dois produtos. O
+    segundo cliente pede o oposto, o terceiro pede uma variacao, e a partir dai
+    cada correcao de bug precisa ser pensada N vezes — uma por cliente — porque
+    ninguem mais sabe quem esta em qual ramo. O custo nao aparece no dia em que
+    a linha e escrita; ele aparece um ano depois, em cada mudanca.
+    """
+    pattern = re.compile(
+        r"""(?i)\b(if|elif)\b[^\n]*\b(tenant|tenant_id|slug|cliente)\b\s*(==|!=)\s*['"]"""
+    )
+    offenders: list[str] = []
+    for path in _modules():
+        relative = str(path.relative_to(SRC))
+        for line_number, line in enumerate(_code_lines(path), 1):
+            if pattern.search(line):
+                offenders.append(f"{relative}:{line_number}")
+    assert offenders == [], (
+        f"condicional por tenant no codigo: {offenders}. "
+        "Diferenca entre clientes e configuracao, nao ramo."
+    )
+
+
 def _code_lines(path: Path) -> list[str]:
     """Linhas de codigo, sem docstring nem comentario."""
     source = path.read_text(encoding="utf-8")
