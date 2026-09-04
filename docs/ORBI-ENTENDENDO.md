@@ -1122,6 +1122,45 @@ pytest tests/integration/test_rls.py -v
 pytest tests/evals -k adversarial -v
 ```
 
+## O comando que o suporte usa todo dia (D-042)
+
+Com `orbi tenant debug --on`, a resposta ganha um código curto no rodapé:
+
+```
+CIM CP-II 50KG (CIMCP2) — 575 Units disponíveis
+
+_ref T6XLNJ_
+```
+
+O cliente reclama citando o código, e ele encontra o turno inteiro:
+
+```bash
+orbi trace show T6XLNJ --tenant silva
+```
+
+```
+ quando                  02/09/2026 22:29:46
+ quem                    Carlos (vendedor) (sales_rep)
+ perguntou               quanto tem de cimento?
+ status                  ok
+ tool                    check_stock
+ argumentos              product_term=cimento
+ entidade usada          code=CIMCP2, erp_entity_id=52,
+                         name=CIM CP-II 50KG, stage=trigram
+ policy                  ALLOW
+ latencia                76 ms  (erp 76ms · llm 0ms)
+ hash do payload do ERP  58b7d86afd9cd355...
+```
+
+A linha que mais serve é **`entidade usada`**. O `stage=trigram` diz que o
+produto foi encontrado por semelhança de texto — não por código exato nem por
+apelido aprendido. Se veio o produto errado, você não adivinha: sabe em qual
+etapa da cascata a resolução decidiu, e corrige criando um apelido em vez de
+mexer no modelo.
+
+A busca corre dentro da sessão do cliente, então a RLS vale aqui também — o
+código de um cliente não encontra turno de outro.
+
 E três perguntas que o código responde melhor que qualquer documento:
 
 | Pergunta | Onde está a resposta |
@@ -1398,6 +1437,35 @@ coisas mudam: o custo por cliente precisa ser recalculado, o teto de consultas
 por plano deixa de ser só proteção contra abuso e vira controle de margem, e os
 canais que não cobram por mensagem (Telegram, Slack) ganham peso.
 
+## De quem é o número: as duas opções (D-043)
+
+O cliente escolhe, e as duas são oferecidas de verdade — porque clientes chegam
+em estados diferentes, e recusar uma delas perde cliente por um motivo que não é
+de produto.
+
+| | **Número dele** | **Número nosso** |
+|---|---|---|
+| Como | ele verifica o CNPJ no Business Portfolio e libera nosso acesso | criamos e operamos |
+| Prazo | horas, **se** o portfólio já estiver verificado | imediato |
+| Se não estiver verificado | dias a semanas, com documento | — |
+| Na saída dele | leva o número e a conversa | precisa migrar |
+| Risco de portfólio | dele | **nosso** |
+
+**No código não muda nada.** O Orbi guarda o endereço, o `phone_number_id` e o
+token cifrado; onde a WABA mora é assunto da Meta. Por isso esta é decisão
+comercial e operacional, não técnica — e por isso as duas cabem sem bifurcação.
+
+O risco que o cliente não vê, e que é seu administrar: **portfólio desabilitado
+por violação de integridade trava todas as WABAs dentro dele.** Dez clientes num
+portfólio significa que a violação de um derruba os dez. Por isso cada cliente
+hospedado fica em portfólio separado.
+
+⚠️ E isso tem teto: a Meta limita quantos portfólios uma pessoa cria. As fontes
+públicas divergem entre 2 e 5, e não foi possível confirmar na documentação
+oficial. **Confirme o seu limite antes de vender a opção hospedada para o
+terceiro cliente** — quando o teto chegar, hospedar deixa de ser exceção
+operacional e vira decisão de preço.
+
 ---
 
 # Parte 13 — Papéis: quem vê o quê
@@ -1489,8 +1557,49 @@ Ficam no `.env` do seu servidor. Valem para todos os clientes.
 | `ORBI_SECRET_KEY` | o cofre que cifra as credenciais dos clientes | quem tiver ela **e** um dump do banco abre o ERP de todos |
 | `ORBI_WHATSAPP_APP_SECRET` | prova que o webhook veio mesmo da Meta | alguém pode forjar mensagens no seu webhook |
 | `ORBI_WHATSAPP_VERIFY_TOKEN` | senha do handshake do webhook | pouco impacto sozinho |
-| `GEMINI_API_KEY` | sua conta de LLM | alguém gasta sua cota |
+| `GEMINI_API_KEY` / `OPENAI_API_KEY` | sua conta de LLM, usada por quem não tem a própria | alguém gasta sua cota |
 | `ORBI_OPS_ACCESS_TOKEN` | seu canal de alertas | alguém manda mensagem no seu número interno |
+
+### A chave de LLM tem os dois modos (D-041)
+
+Ela começa na primeira tabela — uma sua, para todos. Mas um cliente pode ganhar
+a **própria**, e aí ela passa para a segunda categoria:
+
+```bash
+orbi tenant set-llm --tenant construtora-silva \
+  --provider openai --api-key "sk-proj-..." --model gpt-5-mini
+```
+
+Vale quando o cliente tem projeto próprio no provedor. O que ele compra com isso
+**não é monitoramento** — a auditoria do Orbi já grava provedor, modelo, tokens,
+custo e latência de cada turno, com resolução maior que qualquer painel de
+provedor. O que ele compra é:
+
+- **teto de gasto que corta só ele** — na OpenAI e na Anthropic o corte é nativo
+  e duro; no Gemini a cota é por projeto do Google Cloud, e isolar exigiria um
+  projeto por cliente, o que não compensa;
+- **cota que não é dividida** com os outros clientes;
+- **raio de vazamento de um cliente**, não de todos.
+
+A chave é cifrada com a mesma `ORBI_SECRET_KEY`, e a CLI nunca imprime ela
+inteira — chave num terminal vai para o histórico do shell e para o scrollback:
+
+```
+chave de LLM   │ openai · gpt-5-mini · chave ...9f2a
+```
+
+**Se a chave do cliente falhar** (teto estourado, revogada), o turno cai para a
+sua e é atendido — um vendedor não pode ficar sem resposta no meio do expediente.
+Mas emite alerta, e a auditoria grava qual provedor de fato atendeu. A
+consequência precisa estar clara: naquele turno o gasto volta a ser seu. O teto
+do provedor é um corte no gasto *daquele cliente*, não um corte absoluto.
+
+Isso obrigou uma exceção nomeada à regra dos dois fabricantes: normalmente
+primário e fallback precisam ser de empresas diferentes, porque dois provedores
+da mesma empresa caem juntos. Aqui os dois lados são **contas diferentes do mesmo
+fabricante** — e teto de gasto e revogação são eventos de conta, não de
+fabricante. Ali o fallback é real, e marcar isso (`contas_distintas`) é uma
+decisão visível no código, justamente para que ninguém a marque à toa.
 
 ### `ORBI_SECRET_KEY` — uma para todos, e é assim que tem que ser
 
