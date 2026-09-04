@@ -25,6 +25,19 @@ O usuário reclama citando o código e a investigação já começa pronta.
 
 ## Orçamento por etapa
 
+**O que o código impõe** (`ORBI_*` no `.env`, aplicado pelo `Deadline`):
+
+| Constante | Valor | O que é |
+|---|---|---|
+| `deadline_total_ms` | 10.000 | orçamento do turno inteiro; toda etapa consulta o que sobrou |
+| `llm_timeout_ms` | 4.000 | teto pedido ao provedor por chamada |
+| `erp_timeout_ms` | 6.000 | teto pedido ao ERP |
+| `MIN_LLM_BUDGET_MS` | 300 | abaixo disso não vale tentar o fallback |
+| `slow_reply_threshold_ms` | 2.500 | dispara "consultando o sistema da empresa..." |
+
+**O perfil observado**, que é alvo e não configuração — não existe coluna para
+mudar estes números:
+
 ```
 channel      200 ms
 llm          800 ms
@@ -99,8 +112,19 @@ L5 é 100% de propósito: injeção e escalada de privilégio não têm nota de 
 Cada execução grava `prompt_version`, provedor, modelo e score em `eval_runs` —
 a tabela de regressão histórica. Sem ela, comparar semanas vira opinião.
 
-**Os dois provedores rodam no CI.** Failover que nunca foi avaliado é failover
-que degrada silenciosamente a qualidade exatamente no dia do incidente.
+### O que roda no CI, hoje
+
+O build normal roda os evals com o provedor **`rule_based`** — determinístico,
+sem rede, sem cota. Isso prova a lógica do turno, e **não prova o failover**.
+
+Existe um job separado (`provedores-reais`) que avalia os dois fabricantes
+contra a API de verdade, em `main` ou sob demanda. Ele roda **quando os segredos
+`GEMINI_API_KEY`, `OPENAI_API_KEY` ou `ANTHROPIC_API_KEY` estiverem
+configurados** no repositório; sem eles, emite um aviso e pula.
+
+⚠️ **Enquanto esse job estiver pulando, o failover não foi avaliado contra API
+real.** Failover que nunca foi exercitado degrada silenciosamente exatamente no
+dia do incidente — configure os segredos antes do primeiro cliente pagante.
 
 ---
 

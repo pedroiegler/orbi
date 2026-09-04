@@ -138,3 +138,58 @@ jobs:
         run: pytest tests/conformance -q
       - name: end-to-end contra Odoo
         run: pytest tests/e2e/test_odoo_turn.py -q
+
+  provedores-reais:
+    name: evals contra os provedores de verdade
+    runs-on: ubuntu-latest
+    # Failover que nunca foi avaliado degrada em silencio exatamente no dia do
+    # incidente. Este job avalia os dois fabricantes contra a API real.
+    #
+    # Roda so quando os segredos existem: sem eles o passo e pulado com aviso,
+    # em vez de o CI ficar vermelho por falta de chave. Enquanto estiver
+    # pulando, o failover NAO esta avaliado — e a documentacao diz isso.
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: orbi-dev
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: papel da aplicacao
+        env:
+          PGPASSWORD: orbi-dev
+        run: |
+          psql -h localhost -U postgres -d postgres -c \
+            "CREATE ROLE orbi_app LOGIN PASSWORD 'orbi-dev' NOBYPASSRLS"
+          psql -h localhost -U postgres -d postgres -c "CREATE DATABASE orbi_test"
+          alembic upgrade head
+      - name: primario (Google)
+        if: env.GEMINI_API_KEY != ''
+        env:
+          ORBI_LLM_PRIMARY: gemini
+        run: pytest tests/evals -q
+      - name: fallback (outro fabricante)
+        if: env.OPENAI_API_KEY != '' || env.ANTHROPIC_API_KEY != ''
+        env:
+          ORBI_LLM_PRIMARY: openai
+        run: pytest tests/evals -q
+      - name: aviso quando nao ha chave
+        if: env.GEMINI_API_KEY == '' && env.OPENAI_API_KEY == '' && env.ANTHROPIC_API_KEY == ''
+        run: |
+          echo "::warning::nenhuma chave de provedor configurada — o failover" \
+               "NAO foi avaliado contra API real neste build"

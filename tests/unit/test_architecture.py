@@ -418,7 +418,10 @@ def test_the_cron_does_not_parse_a_drawn_table() -> None:
     assert "--slugs" in comandos
 
 
-CONVENCOES = ROOT / "docs" / "ORBI-CONVENCOES.md"
+DOCS_COM_PONTEIRO = (
+    ROOT / "docs" / "ORBI-CONVENCOES.md",
+    ROOT / "docs" / "ORBI-ARQUITETURA.md",
+)
 
 
 def test_every_prohibition_points_at_a_test_that_exists() -> None:
@@ -432,18 +435,22 @@ def test_every_prohibition_points_at_a_test_that_exists() -> None:
 
     Um ponteiro quebrado aqui e pior que ponteiro nenhum: ele parece prova.
     """
-    texto = CONVENCOES.read_text(encoding="utf-8")
-    referencias = re.findall(
-        r"((?:unit|integration|e2e|conformance)/[a-z_]+\.py)::(test_[a-z_]+)", texto
-    )
-    assert referencias, "a tabela de proibicoes perdeu os ponteiros"
-
+    arquivos_de_teste = {caminho.name: caminho for caminho in (ROOT / "tests").rglob("test_*.py")}
     quebrados: list[str] = []
-    for arquivo, teste in referencias:
-        caminho = ROOT / "tests" / arquivo
-        if not caminho.exists():
-            quebrados.append(f"{arquivo} (arquivo)")
-        elif f"def {teste}(" not in caminho.read_text(encoding="utf-8"):
-            quebrados.append(f"{arquivo}::{teste}")
+    total = 0
 
+    for documento in DOCS_COM_PONTEIRO:
+        texto = documento.read_text(encoding="utf-8")
+        # ORBI-CONVENCOES cita com pasta (`unit/test_x.py::t`); ORBI-ARQUITETURA,
+        # so o nome do arquivo. As duas formas valem — o que nao vale e apontar
+        # para o que nao existe.
+        for arquivo, teste in re.findall(r"(test_[a-z_]+\.py)::(test_[a-z_]+)", texto):
+            total += 1
+            caminho = arquivos_de_teste.get(arquivo)
+            if caminho is None:
+                quebrados.append(f"{documento.name}: {arquivo} (arquivo)")
+            elif f"def {teste}(" not in caminho.read_text(encoding="utf-8"):
+                quebrados.append(f"{documento.name}: {arquivo}::{teste}")
+
+    assert total > 20, "os documentos perderam os ponteiros de teste"
     assert quebrados == [], f"proibicao sem guarda: {quebrados}"
