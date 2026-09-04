@@ -92,8 +92,9 @@ cadastrado", um atacante poderia testar milhares de números e descobrir quais s
 de vendedores da empresa. Chama-se **enumeração de usuários**, e a defesa é
 exatamente essa: a mesma resposta para todo mundo.
 
-Da quarta tentativa em diante, o Orbi para de responder — nem a mensagem genérica.
-Varredura não vira custo.
+Da **quarta** tentativa dentro de **10 minutos** em diante, o Orbi para de
+responder — nem a mensagem genérica (`UNKNOWN_SENDER_LIMIT = 3`). Varredura não
+vira custo, e o silêncio também não confirma nada.
 
 *No código:* [identity/resolver.py](../src/orbi/identity/resolver.py)
 
@@ -994,12 +995,23 @@ E colocar no cron: backup diário, restore test mensal.
 
 | Integração | Para quê | Estado | Custo |
 |---|---|---|---|
-| **Google Gemini** | escolher a tool (primário) | implementado, falta sua chave | grátis na camada do AI Studio |
-| **Anthropic Claude** | failover (outro fabricante) | implementado, sem chave | pago |
-| **OpenAI** | failover alternativo + embeddings de produção | implementado, sem chave | pago |
-| **WhatsApp Cloud API (Meta)** | canal com o usuário | implementado, falta número real | grátis até out/2026 no fluxo do Orbi |
-| **Odoo (XML-RPC)** | ERP de referência | **rodando e validado** | grátis (Community) |
-| **Langfuse** | tracing dos turnos | implementado, sem chave | camada gratuita generosa |
+| Integração | Estado hoje | Custo |
+|---|---|---|
+| **Google Gemini** — escolher a tool (primário) | **medido contra a API real**: turno completo em 1,2 s, acerto de tool 90%, 20 requisições/dia na camada gratuita | grátis na camada do AI Studio |
+| **OpenAI** — failover + embeddings de produção | implementado, **sem chave: a latência e o acerto neste produto são desconhecidos** | pago |
+| **Anthropic Claude** — failover (outro fabricante) | implementado, **sem chave**, idem | pago |
+| **WhatsApp Cloud API (Meta)** | implementado e testado com payload real da Meta; **falta um número de verdade** | grátis até out/2026 no fluxo do Orbi |
+| **Odoo (XML-RPC)** — ERP de referência | **rodando e validado** contra Odoo 18 real, via API oficial | grátis (Community) |
+| **Langfuse** — tracing dos turnos | implementado, sem chave | camada gratuita generosa |
+
+⚠️ **A consequência de duas linhas "sem chave":** o failover nunca foi exercitado
+contra API real. Existe um job de CI que o avalia quando os segredos existirem
+([ORBI-OBSERVABILIDADE.md](ORBI-OBSERVABILIDADE.md)) — configure antes do primeiro
+cliente pagante, porque failover não avaliado degrada exatamente no dia do
+incidente.
+
+Cada cliente pode ter a **própria chave** de LLM em vez da global (D-041):
+`orbi tenant set-llm`.
 
 ## Internas (peças de infraestrutura)
 
@@ -1791,10 +1803,17 @@ redação por IA reabre a porta da injeção de prompt.
 
 ## O flag existe, mas fica desligado
 
-`ORBI_LLM_RENDERING_ENABLED=false` é o interruptor que ligaria a redação por IA.
-Ele existe para o dia em que algum resultado for complexo demais para template
-(um comparativo entre períodos, por exemplo). Até lá fica falso, e o
-`orbi doctor` reclama se alguém ligar em produção.
+`ORBI_LLM_RENDERING_ENABLED=false` é a reserva de lugar para o dia em que algum
+resultado for complexo demais para template — um comparativo entre períodos, por
+exemplo.
+
+**E ele é mais forte do que "um interruptor desligado".** Nenhuma linha do
+Runtime lê essa configuração: **não existe caminho de código que faça o LLM
+redigir.** A flag existe apenas para ser recusada — `orbi doctor` reclama e
+produção **se recusa a subir** se alguém a ligar. Ligá-la não habilitaria nada;
+apenas impediria o sistema de iniciar.
+
+Interruptor desligado alguém religa sem pensar. Código que não existe, não.
 
 O preço de manter assim: as respostas são mais secas. "CIM CP-II 50KG — 575 un
 disponíveis" em vez de "Olá! Você tem 575 sacos disponíveis, posso ajudar em algo
