@@ -99,16 +99,30 @@ ganhar dinheiro: é para provar que existe alguém disposto a pagar.
 
 Você perguntou se isso é praxe. É — e é o padrão dominante no setor.
 
-Salesforce cobra de US$ 25 a 300 por usuário/mês. Jira, US$ 7,75 a 15,25. Slack,
-US$ 8,75. Figma, US$ 15 por editor. Todos limitam por pessoa.
+Salesforce cobra de **US$ 25 (Starter) a 350 (Unlimited)** por usuário/mês, e
+US$ 550 no Agentforce. Jira, Slack e Figma cobram por pessoa do mesmo jeito.
+Limitar usuários não é invenção sua — é o formato padrão do setor.
 
-E o modelo que o Orbi usa — **assinatura com teto de uso** — é hoje o **mais
-comum em software B2B, com 37% do mercado**, tendo subido de 25% no ano anterior.
-Ou seja: você não está inventando nada estranho. Está usando o formato que o
-mercado convergiu.
+Sobre o **teto de uso**, seja preciso ao citar, porque o cliente pode conferir no
+celular durante a reunião:
 
-Um detalhe de contexto: cliente brasileiro paga em média 12% menos que o
-americano pelo mesmo software. Os preços acima já estão calibrados para o Brasil.
+- **37% das empresas de SaaS B2B usam precificação híbrida** (mensalidade fixa
+  **mais** cobrança por consumo);
+- **42% oferecem alguma forma de cobrança por uso**, contra 27% em 2023;
+- **53% ainda monetizam só por assinatura.**
+
+O Orbi fica entre os dois: assinatura fixa com um **teto** de uso, sem cobrança
+por excedente. É mais próximo do modelo de assinatura tradicional que do híbrido
+— então **não diga "37% do mercado usa o nosso modelo"**. Diga o que é verdade e
+serve melhor: *"cobramos assinatura fixa com um limite generoso, para que sua
+conta seja previsível — sem a fatura variável que o modelo por consumo traz."*
+
+Um detalhe de contexto que vale confirmar antes de citar: cliente brasileiro paga
+em média cerca de 12% menos que o americano pelo mesmo software. Os preços acima
+já estão calibrados para o Brasil.
+
+*(Preços de terceiros e participações de mercado conferidos em 03/09/2026.
+Reconfira antes de usar em proposta — tabela de concorrente muda sem aviso.)*
 
 ## O que o cliente vai perguntar, e o que responder
 
@@ -222,16 +236,45 @@ O roteiro completo do go-live está em [ORBI-IMPLANTACAO.md](ORBI-IMPLANTACAO.md
 
 # Onde a margem fica
 
+## De onde vem o custo
+
+Não aceite o total sem a conta. São três parcelas, e elas se comportam de forma
+muito diferente:
+
+| Parcela | Comportamento | Valor | Origem do número |
+|---|---|---|---|
+| VPS, Postgres e backup | **fixo** — não cresce com o cliente | R$ 150 a 400/mês no total | ⚠️ **estimativa, sem cotação** — peça o preço real antes de decidir |
+| LLM | por pergunta | R$ 6 a 30 por cliente | **medido**: 890 tokens de entrada, 24 de saída, contra a API real ([ORBI-MODELOS.md](ORBI-MODELOS.md)) |
+| Mensagens do WhatsApp | por mensagem, **a partir de out/2026** | R$ 130 a 265 por cliente | tarifa do Brasil ainda não publicada |
+
+A parcela fixa é o que faz a margem melhorar com escala: o décimo cliente divide
+a mesma VPS que o segundo.
+
+## A conta, hoje (sem a tarifa da Meta)
+
 | Situação | Receita | Custo | Margem |
 |---|---|---|---|
-| 1 cliente fundador (R$ 350) | R$ 350 | R$ 250–470 | negativa a zero |
-| 1 cliente pagante (R$ 890) | R$ 890 | R$ 250–470 | 47–72% |
-| 3 clientes | ~R$ 2.200 | R$ 500–800 | 64–77% |
-| 10 clientes | ~R$ 7.500 | R$ 1.200–2.500 | 67–84% |
+| 1 cliente fundador (R$ 350) | R$ 350 | R$ 156–430 | negativa a 55% |
+| 1 cliente pagante (R$ 890) | R$ 890 | R$ 156–430 | 52–82% |
+| 3 clientes | ~R$ 2.200 | R$ 168–490 | 78–92% |
+| 10 clientes | ~R$ 7.500 | R$ 210–700 | 91–97% |
 
 O primeiro cliente não fecha a conta, e não precisa: ele existe para provar. **O
 segundo cliente a preço cheio já deixa a operação no azul** — porque o custo
 marginal do décimo é praticamente o mesmo do segundo.
 
-Números de mensagem da Meta não estão nessa tabela ainda. Quando a tarifa sair,
-some R$ 130 a 265 por cliente e recalcule.
+## A mesma conta a partir de outubro de 2026
+
+Com a tarifa da Meta, some R$ 130 a 265 **por cliente** — e essa parcela **não**
+amortiza:
+
+| Situação | Receita | Custo | Margem |
+|---|---|---|---|
+| 1 cliente pagante | R$ 890 | R$ 286–695 | 22–68% |
+| 3 clientes | ~R$ 2.200 | R$ 558–1.285 | 42–75% |
+| 10 clientes | ~R$ 7.500 | R$ 1.510–3.350 | 55–80% |
+
+É por isso que o teto de consultas deixa de ser proteção contra abuso e vira
+controle de margem naquela data. **Refaça esta tabela com a tarifa real quando
+ela sair** — as duas colunas de custo aqui são as únicas do documento que
+dependem de um número que ninguém publicou ainda.

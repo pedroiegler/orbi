@@ -45,6 +45,7 @@ e há um teste de arquitetura que falha se alguém tentar.
 | `supports_reservations` | a resposta de estoque passa a declarar que o número é físico |
 | `supports_multi_location` | a resposta traz só o total, sem quebra por depósito |
 | `supports_customer_pricing` | o preço respondido é o de lista |
+| `supports_quantity_pricing` | o preço não varia por quantidade pedida |
 | `supports_incremental_catalog` | o sync incremental vira full |
 
 ---

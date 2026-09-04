@@ -103,16 +103,23 @@ Preços conferidos em 29/08/2026 nas páginas oficiais. A tabela vive em
 Pegue um cliente do plano Time (**R$ 890/mês**) com 10 vendedores fazendo 15
 perguntas por dia útil — 3.300 perguntas por mês:
 
-| Modelo | Custo mensal de LLM | % da receita |
-|---|---|---|
-| gpt-5-nano | R$ 0,36 | 0,04% |
-| gemini-3.5-flash-lite | R$ 2,19 | 0,25% |
-| claude-haiku-4.5 | R$ 5,86 | 0,66% |
-| claude-sonnet-5 | R$ 17,58 | 1,98% |
-| **claude-opus-5** (o mais caro) | **R$ 29,31** | **3,29%** |
+| Modelo | Com cache (85%) | **Sem cache nenhum** | % da receita, sem cache |
+|---|---|---|---|
+| gpt-5-nano | R$ 0,36 | R$ 0,96 | 0,11% |
+| gemini-3.5-flash-lite | R$ 2,19 | R$ 5,83 | 0,66% |
+| claude-haiku-4.5 | R$ 5,86 | R$ 18,00 | 2,02% |
+| claude-sonnet-5 | R$ 17,58 | R$ 54,00 | 6,07% |
+| **claude-opus-5** (o mais caro) | **R$ 29,31** | **R$ 90,00** | **10,1%** |
 
-Leia de novo: **o modelo mais caro do mercado custaria R$ 29 por mês** num cliente
-que paga R$ 890. A diferença entre o mais barato e o mais caro é **R$ 29**.
+⚠️ **A premissa por trás da coluna do meio.** Ela assume 85% de aproveitamento de
+prompt caching. O prefixo do Orbi é desenhado para isso, mas o cache tem TTL
+(tipicamente 5 minutos): um cliente com 150 perguntas espalhadas por 8 horas —
+uma a cada 3 minutos — fica no limite, e o aproveitamento real pode ser bem menor.
+**Enquanto não for medido em produção, planeje pela coluna sem cache.**
+
+Leia de novo, pelo pior caso: **o modelo mais caro do mercado custaria R$ 90 por
+mês** num cliente que paga R$ 890 — 10% da receita, e ainda menos que a conta de
+mensagens do WhatsApp. Com o modelo que o Orbi realmente usa, são R$ 5,83.
 
 Compare com o que realmente pesa:
 
