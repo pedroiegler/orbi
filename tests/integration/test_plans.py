@@ -32,8 +32,18 @@ def _phone(n: int) -> str:
 def _criar(slug: str, plano: str = "essencial") -> None:
     resultado = runner.invoke(
         app,
-        ["tenant", "add", "--tenant", slug, "--name", f"Cliente {slug}",
-         "--phone", _phone(0), "--plan", plano],
+        [
+            "tenant",
+            "add",
+            "--tenant",
+            slug,
+            "--name",
+            f"Cliente {slug}",
+            "--phone",
+            _phone(0),
+            "--plan",
+            plano,
+        ],
     )
     assert resultado.exit_code == 0, resultado.output
 
@@ -78,8 +88,18 @@ def test_criar_cliente_aplica_o_teto_do_plano(database: None) -> None:
 def test_plano_invalido_e_recusado_no_cadastro(database: None) -> None:
     resultado = runner.invoke(
         app,
-        ["tenant", "add", "--tenant", _slug(), "--name", "X",
-         "--phone", _phone(1), "--plan", "ilimitado"],
+        [
+            "tenant",
+            "add",
+            "--tenant",
+            _slug(),
+            "--name",
+            "X",
+            "--phone",
+            _phone(1),
+            "--plan",
+            "ilimitado",
+        ],
     )
     assert resultado.exit_code != 0
     assert "desconhecido" in resultado.output
@@ -96,15 +116,35 @@ def test_o_limite_de_usuarios_do_plano_e_cumprido(database: None) -> None:
     for i in range(limite):
         resultado = runner.invoke(
             app,
-            ["user", "add", "--tenant", slug, "--phone", _phone(i + 10),
-             "--role", "sales_rep", "--name", f"Vendedor {i}"],
+            [
+                "user",
+                "add",
+                "--tenant",
+                slug,
+                "--phone",
+                _phone(i + 10),
+                "--role",
+                "sales_rep",
+                "--name",
+                f"Vendedor {i}",
+            ],
         )
         assert resultado.exit_code == 0, resultado.output
 
     excedente = runner.invoke(
         app,
-        ["user", "add", "--tenant", slug, "--phone", _phone(99),
-         "--role", "sales_rep", "--name", "Um a mais"],
+        [
+            "user",
+            "add",
+            "--tenant",
+            slug,
+            "--phone",
+            _phone(99),
+            "--role",
+            "sales_rep",
+            "--name",
+            "Um a mais",
+        ],
     )
     assert excedente.exit_code != 0
     assert "plano" in excedente.output.lower()
@@ -116,16 +156,39 @@ def test_subir_de_plano_libera_mais_usuarios(database: None) -> None:
     for i in range(plans.plano_de("essencial").max_usuarios):
         runner.invoke(
             app,
-            ["user", "add", "--tenant", slug, "--phone", _phone(i + 20),
-             "--role", "sales_rep", "--name", f"V{i}"],
+            [
+                "user",
+                "add",
+                "--tenant",
+                slug,
+                "--phone",
+                _phone(i + 20),
+                "--role",
+                "sales_rep",
+                "--name",
+                f"V{i}",
+            ],
         )
 
-    assert runner.invoke(app, ["tenant", "set-plan", "--tenant", slug, "--plan", "time"]).exit_code == 0
+    assert (
+        runner.invoke(app, ["tenant", "set-plan", "--tenant", slug, "--plan", "time"]).exit_code
+        == 0
+    )
 
     depois = runner.invoke(
         app,
-        ["user", "add", "--tenant", slug, "--phone", _phone(98),
-         "--role", "sales_rep", "--name", "Sexto"],
+        [
+            "user",
+            "add",
+            "--tenant",
+            slug,
+            "--phone",
+            _phone(98),
+            "--role",
+            "sales_rep",
+            "--name",
+            "Sexto",
+        ],
     )
     assert depois.exit_code == 0, depois.output
 
@@ -137,12 +200,20 @@ def test_rebaixar_plano_com_usuarios_demais_e_recusado(database: None) -> None:
     for i in range(6):
         runner.invoke(
             app,
-            ["user", "add", "--tenant", slug, "--phone", _phone(i + 30),
-             "--role", "sales_rep", "--name", f"V{i}"],
+            [
+                "user",
+                "add",
+                "--tenant",
+                slug,
+                "--phone",
+                _phone(i + 30),
+                "--role",
+                "sales_rep",
+                "--name",
+                f"V{i}",
+            ],
         )
 
-    resultado = runner.invoke(
-        app, ["tenant", "set-plan", "--tenant", slug, "--plan", "essencial"]
-    )
+    resultado = runner.invoke(app, ["tenant", "set-plan", "--tenant", slug, "--plan", "essencial"])
     assert resultado.exit_code != 0
     assert "desative" in resultado.output.lower()

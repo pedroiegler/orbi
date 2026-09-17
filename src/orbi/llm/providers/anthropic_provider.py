@@ -26,7 +26,6 @@ PROVIDER_NAME = "anthropic"
 DEFAULT_MODEL = "claude-opus-5"
 
 
-
 class AnthropicProvider:
     """Implementa o `LLMPort` sobre o SDK oficial da Anthropic."""
 
@@ -141,8 +140,6 @@ def _to_envelope(response: Any, provider: str, model: str, latency_ms: int) -> T
         cost_usd=_custo(model, tokens_in, tokens_out, cached_in),
         latency_ms=latency_ms,
     )
-
-
 
 
 def _translate(exc: Exception) -> Exception:

@@ -98,9 +98,7 @@ def build_synthetic_set(
         for variation, term in _variations(canonical, rng).items():
             if term and term != canonical:
                 cases.append(
-                    SyntheticCase(
-                        term=term, expected_id=row.erp_entity_id, variation=variation
-                    )
+                    SyntheticCase(term=term, expected_id=row.erp_entity_id, variation=variation)
                 )
         cases.append(
             SyntheticCase(term=canonical, expected_id=row.erp_entity_id, variation="exato")
@@ -139,9 +137,7 @@ def calibrate(
     max_silent_error: float = MAX_SILENT_ERROR_RATE,
 ) -> CalibrationResult | None:
     """Varre os pares de limiar e devolve o melhor sob o teto de erro silencioso."""
-    cases = build_synthetic_set(
-        session, tenant_id, entity_type=entity_type, sample=sample
-    )
+    cases = build_synthetic_set(session, tenant_id, entity_type=entity_type, sample=sample)
     if not cases:
         return None
 

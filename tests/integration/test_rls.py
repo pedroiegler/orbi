@@ -124,9 +124,10 @@ def test_toda_tabela_com_tenant_id_tem_rls_forcado() -> None:
     aparece no primeiro `pytest`.
     """
     with admin_session() as session:
-        desprotegidas = session.execute(
-            text(
-                """
+        desprotegidas = (
+            session.execute(
+                text(
+                    """
                 SELECT c.relname
                 FROM pg_class c
                 JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -141,8 +142,11 @@ def test_toda_tabela_com_tenant_id_tem_rls_forcado() -> None:
                   AND NOT (c.relrowsecurity AND c.relforcerowsecurity)
                 ORDER BY c.relname
                 """
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
     assert not desprotegidas, f"tabelas com tenant_id e sem RLS forcado: {desprotegidas}"
 
@@ -156,9 +160,15 @@ def test_tabelas_globais_sao_exatamente_as_esperadas() -> None:
     """
     esperadas = {
         # catalogo do produto, igual para todos os clientes
-        "tenants", "roles", "capabilities", "tools", "role_tools", "role_capabilities",
+        "tenants",
+        "roles",
+        "capabilities",
+        "tools",
+        "role_tools",
+        "role_capabilities",
         # operacao: escritas pela CLI e pelo Runtime, sem leitura por cliente
-        "eval_runs", "rate_limit_counters",
+        "eval_runs",
+        "rate_limit_counters",
         "alembic_version",
     }
     with admin_session() as session:
@@ -180,7 +190,9 @@ def test_tabelas_globais_sao_exatamente_as_esperadas() -> None:
                       )
                     """
                 )
-            ).scalars().all()
+            )
+            .scalars()
+            .all()
         )
 
     novas = globais - esperadas

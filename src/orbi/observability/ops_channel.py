@@ -92,8 +92,7 @@ def format_daily_summary(report: dict[str, Any]) -> str:
     if missing:
         lines.append("Termos sem resultado (viram alias):")
         lines.extend(
-            f"  {index}. {term} ({count}x)"
-            for index, (term, count) in enumerate(missing, 1)
+            f"  {index}. {term} ({count}x)" for index, (term, count) in enumerate(missing, 1)
         )
     else:
         lines.append("Nenhum termo sem resultado hoje.")

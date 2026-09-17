@@ -26,9 +26,7 @@ TenantOption = Annotated[str, typer.Option("--tenant", "-t")]
 def sync(
     tenant: TenantOption,
     mode: Annotated[str, typer.Option("--mode", help="full | incremental")] = "full",
-    since_hours: Annotated[
-        int, typer.Option("--since-hours", help="Janela do incremental.")
-    ] = 4,
+    since_hours: Annotated[int, typer.Option("--since-hours", help="Janela do incremental.")] = 4,
     force: Annotated[
         bool,
         typer.Option(

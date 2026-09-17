@@ -186,8 +186,7 @@ def run_l3(tenant_id: uuid.UUID | None) -> LayerResult:
             if wrong_entity:
                 assert resolution.entity is not None
                 result.failures.append(
-                    f"{case['term']!r} → {resolution.entity.erp_entity_id} "
-                    f"(esperado {expected_id})"
+                    f"{case['term']!r} → {resolution.entity.erp_entity_id} (esperado {expected_id})"
                 )
                 continue
             if expected_status == "AMBIGUOUS" and expected_id:

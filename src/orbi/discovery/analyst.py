@@ -310,9 +310,7 @@ def _short_term(canonical_name: str, words: int = 4) -> str:
     return " ".join(canonical_name.split()[:words])
 
 
-def _abbreviation_candidates(
-    session: Session, tenant_id: uuid.UUID
-) -> list[AbbreviationCandidate]:
+def _abbreviation_candidates(session: Session, tenant_id: uuid.UUID) -> list[AbbreviationCandidate]:
     """Tokens curtos e frequentes que o dicionario base nao cobre.
 
     Nao se inventa a expansao: o candidato entra com confianca baixa e vai para a

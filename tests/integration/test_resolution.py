@@ -48,9 +48,7 @@ def test_sync_indexes_the_catalog_with_canonical_names(tenant_id: uuid.UUID) -> 
     assert report.items_created > 0  # type: ignore[attr-defined]
 
     with tenant_session(tenant_id) as session:
-        item = session.scalars(
-            select(CatalogItem).where(CatalogItem.erp_entity_id == "4471")
-        ).one()
+        item = session.scalars(select(CatalogItem).where(CatalogItem.erp_entity_id == "4471")).one()
     assert item.name == "TB PVC ESG 100MM BR"
     assert item.canonical_name == "tubo pvc esgoto 100 mm branco"
     assert item.embedding is not None
@@ -142,9 +140,15 @@ def test_sync_reports_abort_without_leaving_the_run_running(tenant_id: uuid.UUID
     _sync(tenant_id)
     with tenant_session(tenant_id) as session:
         CatalogSynchronizer(session, tenant_id, EMBEDDER).run([], mode="full")
-        runs = session.execute(
-            select(__import__("orbi.db.models", fromlist=["CatalogSyncRun"]).CatalogSyncRun.status)
-        ).scalars().all()
+        runs = (
+            session.execute(
+                select(
+                    __import__("orbi.db.models", fromlist=["CatalogSyncRun"]).CatalogSyncRun.status
+                )
+            )
+            .scalars()
+            .all()
+        )
     assert "aborted" in runs
 
 
@@ -159,7 +163,9 @@ def test_sync_aborted_exception_carries_the_ratio() -> None:
 def test_exact_name_resolves(tenant_id: uuid.UUID) -> None:
     _sync(tenant_id)
     with tenant_session(tenant_id) as session:
-        resolution = _resolver(session, tenant_id).resolve("tubo pvc esgoto 100 mm branco", "product")
+        resolution = _resolver(session, tenant_id).resolve(
+            "tubo pvc esgoto 100 mm branco", "product"
+        )
     assert resolution.status == "FOUND"
     assert resolution.entity is not None
     assert resolution.entity.erp_entity_id == "4471"
@@ -236,9 +242,7 @@ def test_barcode_resolves_on_the_deterministic_path(tenant_id: uuid.UUID) -> Non
 def test_inactive_items_never_resolve(tenant_id: uuid.UUID) -> None:
     _sync(tenant_id)
     with tenant_session(tenant_id) as session:
-        item = session.scalars(
-            select(CatalogItem).where(CatalogItem.erp_entity_id == "6010")
-        ).one()
+        item = session.scalars(select(CatalogItem).where(CatalogItem.erp_entity_id == "6010")).one()
         item.active = False
 
     with tenant_session(tenant_id) as session:
@@ -309,9 +313,7 @@ def test_repeated_correction_removes_the_alias(tenant_id: uuid.UUID) -> None:
         assert session.scalars(select(EntityAlias)).all() == []
 
 
-def test_alias_is_scoped_to_the_tenant(
-    tenant_id: uuid.UUID, other_tenant_id: uuid.UUID
-) -> None:
+def test_alias_is_scoped_to_the_tenant(tenant_id: uuid.UUID, other_tenant_id: uuid.UUID) -> None:
     _sync(tenant_id)
     _sync(other_tenant_id)
     with tenant_session(tenant_id) as session:

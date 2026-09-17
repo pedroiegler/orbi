@@ -62,9 +62,7 @@ def _row_touches_canary(value: Any, depth: int = 0) -> bool:
     if isinstance(value, dict):
         return any(_row_touches_canary(item, depth + 1) for item in value.values())
     for attribute in ("tenant_id", "id"):
-        if hasattr(value, attribute) and _row_touches_canary(
-            getattr(value, attribute), depth + 1
-        ):
+        if hasattr(value, attribute) and _row_touches_canary(getattr(value, attribute), depth + 1):
             return True
     return False
 

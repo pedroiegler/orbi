@@ -174,9 +174,7 @@ def ensure_customers(odoo: Odoo) -> dict[str, int]:
 
 def ensure_stock(odoo: Odoo, products: dict[str, int]) -> None:
     """Ajusta o estoque pela API oficial (`stock.quant`), nunca pelo banco."""
-    warehouses = odoo.call(
-        "stock.warehouse", "search_read", [], ["lot_stock_id", "name"], limit=3
-    )
+    warehouses = odoo.call("stock.warehouse", "search_read", [], ["lot_stock_id", "name"], limit=3)
     if not warehouses:
         print("nenhum armazem encontrado: pulei o ajuste de estoque")
         return
@@ -273,10 +271,12 @@ def main() -> int:
     print("\nOdoo pronto. Conecte o Orbi com:")
     print(
         f"  orbi erp add --tenant <slug> --adapter odoo --credentials "
-        f"'{{\"url\":\"{args.url}\",\"db\":\"{args.db}\","
-        f"\"username\":\"{args.login}\",\"api_key\":\"{args.password}\"}}'"
+        f'\'{{"url":"{args.url}","db":"{args.db}",'
+        f'"username":"{args.login}","api_key":"{args.password}"}}\''
     )
-    print(f"  produto ancora: {products.get('CIMCP2')} · cliente ancora: {customers.get('CLI9001')}")
+    print(
+        f"  produto ancora: {products.get('CIMCP2')} · cliente ancora: {customers.get('CLI9001')}"
+    )
     return 0
 
 

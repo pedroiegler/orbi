@@ -47,8 +47,18 @@ def _phone() -> str:
 def _criar(slug: str) -> uuid.UUID:
     resultado = runner.invoke(
         app,
-        ["tenant", "add", "--tenant", slug, "--name", f"Cliente {slug}",
-         "--phone", _phone(), "--plan", "time"],
+        [
+            "tenant",
+            "add",
+            "--tenant",
+            slug,
+            "--name",
+            f"Cliente {slug}",
+            "--phone",
+            _phone(),
+            "--plan",
+            "time",
+        ],
     )
     assert resultado.exit_code == 0, resultado.output
     from orbi.db.models import Tenant
@@ -72,8 +82,18 @@ def test_a_chave_nunca_fica_em_texto_claro_no_banco() -> None:
     tenant_id = _criar(slug)
     runner.invoke(
         app,
-        ["tenant", "set-llm", "--tenant", slug, "--provider", "openai",
-         "--api-key", CHAVE, "--model", "gpt-5-mini"],
+        [
+            "tenant",
+            "set-llm",
+            "--tenant",
+            slug,
+            "--provider",
+            "openai",
+            "--api-key",
+            CHAVE,
+            "--model",
+            "gpt-5-mini",
+        ],
     )
 
     guardado = _blob(tenant_id)
@@ -88,8 +108,18 @@ def test_a_cli_nunca_imprime_a_chave_inteira() -> None:
     _criar(slug)
     runner.invoke(
         app,
-        ["tenant", "set-llm", "--tenant", slug, "--provider", "openai",
-         "--api-key", CHAVE, "--model", "gpt-5-mini"],
+        [
+            "tenant",
+            "set-llm",
+            "--tenant",
+            slug,
+            "--provider",
+            "openai",
+            "--api-key",
+            CHAVE,
+            "--model",
+            "gpt-5-mini",
+        ],
     )
     saida = runner.invoke(app, ["tenant", "show", "--tenant", slug]).output
 
@@ -104,8 +134,18 @@ def test_a_chave_de_um_cliente_nao_aparece_no_outro() -> None:
     vizinho_id = _criar(vizinho)
     runner.invoke(
         app,
-        ["tenant", "set-llm", "--tenant", dono, "--provider", "openai",
-         "--api-key", CHAVE, "--model", "gpt-5-mini"],
+        [
+            "tenant",
+            "set-llm",
+            "--tenant",
+            dono,
+            "--provider",
+            "openai",
+            "--api-key",
+            CHAVE,
+            "--model",
+            "gpt-5-mini",
+        ],
     )
 
     assert _blob(vizinho_id) is None
@@ -120,8 +160,18 @@ def test_provedor_sem_suporte_e_recusado_na_porta() -> None:
     _criar(slug)
     resultado = runner.invoke(
         app,
-        ["tenant", "set-llm", "--tenant", slug, "--provider", "azure",
-         "--api-key", CHAVE, "--model", "gpt-5-mini"],
+        [
+            "tenant",
+            "set-llm",
+            "--tenant",
+            slug,
+            "--provider",
+            "azure",
+            "--api-key",
+            CHAVE,
+            "--model",
+            "gpt-5-mini",
+        ],
     )
     assert resultado.exit_code != 0
     assert "azure" in resultado.output
@@ -134,8 +184,18 @@ def test_modelo_fora_da_tabela_de_precos_avisa() -> None:
     _criar(slug)
     resultado = runner.invoke(
         app,
-        ["tenant", "set-llm", "--tenant", slug, "--provider", "openai",
-         "--api-key", CHAVE, "--model", "gpt-que-nao-existe"],
+        [
+            "tenant",
+            "set-llm",
+            "--tenant",
+            slug,
+            "--provider",
+            "openai",
+            "--api-key",
+            CHAVE,
+            "--model",
+            "gpt-que-nao-existe",
+        ],
     )
     assert resultado.exit_code == 0
     assert "fora da tabela de precos" in resultado.output
@@ -171,8 +231,18 @@ def test_clear_llm_devolve_o_cliente_a_global() -> None:
     tenant_id = _criar(slug)
     runner.invoke(
         app,
-        ["tenant", "set-llm", "--tenant", slug, "--provider", "openai",
-         "--api-key", CHAVE, "--model", "gpt-5-mini"],
+        [
+            "tenant",
+            "set-llm",
+            "--tenant",
+            slug,
+            "--provider",
+            "openai",
+            "--api-key",
+            CHAVE,
+            "--model",
+            "gpt-5-mini",
+        ],
     )
     assert _blob(tenant_id) is not None
 

@@ -55,9 +55,7 @@ def test_erp_errors_are_recorded_and_reraised() -> None:
     with pytest.raises(ErpTimeout):
         gateway.get_stock("4471", deadline=Deadline(total_ms=5_000))
 
-    key = CircuitBreaker.key_for(
-        "11111111-1111-4111-8111-111111111111", "memory", "get_stock"
-    )
+    key = CircuitBreaker.key_for("11111111-1111-4111-8111-111111111111", "memory", "get_stock")
     assert breaker.state(key) == "closed"  # uma falha ainda nao abre
 
 

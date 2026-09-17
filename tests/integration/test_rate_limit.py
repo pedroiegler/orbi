@@ -37,9 +37,7 @@ def test_a_new_window_starts_a_new_count(tenant_id: uuid.UUID) -> None:
     with tenant_session(tenant_id) as session:
         for _ in range(3):
             hit(session, scope, limit=3, window_seconds=MINUTE, now=now)
-        later = hit(
-            session, scope, limit=3, window_seconds=MINUTE, now=now + timedelta(seconds=61)
-        )
+        later = hit(session, scope, limit=3, window_seconds=MINUTE, now=now + timedelta(seconds=61))
 
     assert later.allowed
     assert later.hits == 1
@@ -63,9 +61,7 @@ def test_unknown_sender_has_its_own_aggressive_scope(tenant_id: uuid.UUID) -> No
     now = datetime.now(UTC)
 
     with tenant_session(tenant_id) as session:
-        results = [
-            hit(session, scope, limit=3, window_seconds=600, now=now) for _ in range(5)
-        ]
+        results = [hit(session, scope, limit=3, window_seconds=600, now=now) for _ in range(5)]
 
     assert results[-1].allowed is False
 

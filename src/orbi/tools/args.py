@@ -109,9 +109,7 @@ class EntityTerm(str):
         return super().__new__(cls, " ".join(value.split()))
 
     @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: Any
-    ) -> CoreSchema:
+    def __get_pydantic_core_schema__(cls, source_type: Any, handler: Any) -> CoreSchema:
         def validate(value: str) -> EntityTerm:
             return cls(value)
 

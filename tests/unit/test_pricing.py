@@ -78,9 +78,7 @@ def test_modelo_fora_da_tabela_e_pendencia_de_producao() -> None:
 
 
 def test_modelo_conhecido_nao_gera_pendencia() -> None:
-    settings = Settings(
-        ORBI_ENV="production", ORBI_LLM_PRIMARY="openai", OPENAI_MODEL="gpt-5-mini"
-    )
+    settings = Settings(ORBI_ENV="production", ORBI_LLM_PRIMARY="openai", OPENAI_MODEL="gpt-5-mini")
     assert pricing.modelos_sem_preco(settings) == []
 
 

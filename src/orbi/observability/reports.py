@@ -17,9 +17,7 @@ from sqlalchemy.orm import Session
 TOP_UNRESOLVED = 5
 
 
-def daily_report(
-    session: Session, tenant_id: uuid.UUID, day: date | None = None
-) -> dict[str, Any]:
+def daily_report(session: Session, tenant_id: uuid.UUID, day: date | None = None) -> dict[str, Any]:
     """Consolida um dia de um tenant a partir da auditoria."""
     target = day or datetime.now(UTC).date()
     start = datetime.combine(target, time.min, tzinfo=UTC)
@@ -116,8 +114,7 @@ def inactivity_alert(session: Session, tenant_id: uuid.UUID, hours: int = 24) ->
     since = datetime.now(UTC) - timedelta(hours=hours)
     count = session.execute(
         text(
-            "SELECT count(*) FROM audit_logs "
-            "WHERE tenant_id = :tenant_id AND occurred_at >= :since"
+            "SELECT count(*) FROM audit_logs WHERE tenant_id = :tenant_id AND occurred_at >= :since"
         ),
         {"tenant_id": str(tenant_id), "since": since},
     ).scalar_one()
