@@ -1086,11 +1086,11 @@ volume justificar.
 
 | Etapa | Duração | Custo/mês | Resultado |
 |---|---|---|---|
-| 1. Odoo + fundação | 2–3 semanas | R$ 200–400 | Runtime completo contra ERP de teste |
-| 2. Adapter do 1º ERP de produção | 1–2 semanas | R$ 200–400 | Passa no Conformance Kit; abstração validada |
-| 3. PoC com cliente | 3 semanas | R$ 200–370 | 20 casos escritos por ele, passando |
-| 4. Primeiro contrato | — | R$ 250–470 | R$ 350/mês, preço de fundador, 12 meses |
-| 5. Do 2º cliente em diante | 4h cada | +R$ 120–250 | R$ 890/mês, preço cheio |
+| 1. Odoo + fundação | 2–3 semanas | R$ 150–400 | Runtime completo contra ERP de teste |
+| 2. Adapter do 1º ERP de produção | 1–2 semanas | R$ 150–400 | Passa no Conformance Kit; abstração validada |
+| 3. PoC com cliente | 3 semanas | R$ 156–430 | 20 casos escritos por ele, passando |
+| 4. Primeiro contrato | — | R$ 156–430 | R$ 350/mês, preço de fundador, 12 meses |
+| 5. Do 2º cliente em diante | 4h cada | +R$ 6–30 (só LLM; a infra é fixa) | R$ 890/mês, preço cheio |
 
 **Reserva necessária:** R$ 2.500–4.000 cobre os primeiros oito meses de infraestrutura com folga.
 
@@ -1114,18 +1114,24 @@ que paga zero é usuário, e usuário não cancela — ele só some.
 
 ### Custo de infraestrutura por fase
 
-| Fase | Situação | Custo/mês |
+| Fase | Situação | Custo/mês (antes da tarifa da Meta) |
 |---|---|---|
-| 0 | Odoo local, sem cliente | R$ 200–400 |
-| 1 | PoC com 1 cliente | R$ 200–370 |
-| 2 | 1 cliente pagante | R$ 250–470 |
-| 3 | 10 clientes | R$ 1.200–2.500 |
+| 0 | Odoo local, sem cliente | R$ 150–400 |
+| 1 | PoC com 1 cliente | R$ 156–430 |
+| 2 | 1 cliente pagante | R$ 156–430 |
+| 3 | 10 clientes | R$ 210–700 **no total** |
 
-Composição: VPS em São Paulo (Docker Compose, Postgres e Langfuse na mesma máquina), backup em
-provedor diferente, LLM e embeddings. **Custo por cliente em escala: R$ 120–250/mês.**
+Composição, com a origem de cada número: **infra fixa** — VPS em São Paulo (Docker Compose,
+Postgres e Langfuse na mesma máquina) e backup em provedor diferente — R$ 150–400/mês
+(⚠️ estimativa, sem cotação; a maior parcela e a única que ninguém verificou); **LLM** — R$ 6–30
+por cliente, medido contra a API real (890 tokens de entrada, 24 de saída). A infra não cresce
+com o cliente: **em escala, o custo por cliente cai para ≈ R$ 21–70/mês**, e é isso que faz a
+margem melhorar do segundo cliente em diante. A conta aberta está em
+[ORBI-COMERCIAL.md](ORBI-COMERCIAL.md).
 
-**O número de WhatsApp é do cliente**, não do Orbi — custo zero para a operação e melhor posição
-na LGPD.
+**De quem é o número de WhatsApp, o cliente escolhe** (D-043): no Business Portfolio dele — o
+padrão, custo zero para a operação e melhor posição na LGPD — ou no nosso, quando a verificação
+da Meta atrasaria a PoC. O código é indiferente às duas.
 
 Sobre a tarifa da Meta, um ponto que exige atenção imediata: até setembro de 2026, respostas em
 texto livre dentro da janela de 24 horas aberta pelo usuário são gratuitas — exatamente o fluxo do
@@ -1170,17 +1176,24 @@ dia deixando de ligar para o escritório recupera mais de 60 horas por mês. Cob
 
 ### Margem
 
+Hoje, antes da tarifa da Meta:
+
 | Situação | Receita | Custo | Margem |
 |---|---|---|---|
-| 1 cliente fundador (R$ 350) | R$ 350 | R$ 250–470 | negativa a zero |
-| 1 cliente pagante (R$ 890) | R$ 890 | R$ 250–470 | 47–72% |
-| 3 clientes | ~R$ 2.200 | R$ 500–800 | 64–77% |
-| 10 clientes | ~R$ 7.500 | R$ 1.200–2.500 | 67–84% |
-| 20 clientes | ~R$ 15.000 | R$ 2.000–4.000 | 73–87% |
+| 1 cliente fundador (R$ 350) | R$ 350 | R$ 156–430 | negativa a 55% |
+| 1 cliente pagante (R$ 890) | R$ 890 | R$ 156–430 | 52–82% |
+| 3 clientes | ~R$ 2.200 | R$ 168–490 | 78–92% |
+| 10 clientes | ~R$ 7.500 | R$ 210–700 | 91–97% |
+| 20 clientes | ~R$ 15.000 | R$ 270–1.000 | 93–98% |
 
 O primeiro cliente não fecha a conta, e não precisa: ele existe para provar. **O segundo cliente a
 preço cheio já deixa a operação no azul.** É a economia de integração da seção 17 aparecendo no
 resultado — o custo marginal do décimo cliente é praticamente o mesmo do segundo.
+
+A partir de outubro de 2026 entra a parcela que **não** amortiza — a mensagem da Meta, cobrada por
+turno. No uso esperado ela tira pouco (1 cliente Time: 40–71%; 10: 80–86%); **no teto do plano**,
+um cliente Time fica em 16–44%. A tabela por uso, com o nível de confirmação de cada número, está
+em [ORBI-COMERCIAL.md](ORBI-COMERCIAL.md).
 
 ### Aquisição de clientes
 
