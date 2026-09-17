@@ -254,8 +254,8 @@ um pedido errado no sistema do cliente.
 | 1. Odoo + fundação | 2–3 sem | R$ 200–400 | Runtime completo contra ERP de teste |
 | 2. Adapter do 1º ERP | 1–2 sem | R$ 200–400 | Passa no Conformance Kit |
 | 3. PoC com cliente | 3 sem | R$ 200–370 | 20 casos escritos por ele, passando |
-| 4. Primeiro contrato | — | R$ 250–470 | R$ 350/mês, preço de fundador |
-| 5. Do 2º em diante | 4h cada | +R$ 120–250 | R$ 890/mês, preço cheio |
+| 4. Primeiro contrato | — | R$ 156–430 | R$ 350/mês, preço de fundador |
+| 5. Do 2º em diante | 4h cada | +R$ 6–30 (só LLM; a infra é fixa) | R$ 890/mês, preço cheio |
 
 **Reserva:** R$ 2.500–4.000 cobre 8 meses de infraestrutura.
 
@@ -280,15 +280,21 @@ Sem a regra 4, você entrega 3 semanas de valor e ouve "vou pensar".
 
 ## Custo e preço
 
-**Infra por fase:** R$ 200–400 (dev) · R$ 250–470 (1 cliente) · R$ 1.200–2.500 (10 clientes).
-**Custo por cliente em escala: R$ 120–250/mês.**
+**Custo, hoje (sem a tarifa da Meta):** infra fixa de R$ 150–400/mês (⚠️ estimativa, sem
+cotação — a maior parcela e a única que ninguém verificou) + LLM de R$ 6–30 por cliente
+(medido contra a API real). 1 cliente: R$ 156–430 · 10 clientes: R$ 210–700 **no total**. A infra
+não cresce com o cliente — é o que faz a margem melhorar com escala. A conta aberta está em
+[ORBI-COMERCIAL.md](ORBI-COMERCIAL.md).
 
-**O número é do cliente** — melhor para o bolso e para a LGPD.
+**De quem é o número, o cliente escolhe** (D-043): no portfólio dele — o padrão, melhor para o
+bolso e para a LGPD — ou no nosso, quando a verificação da Meta atrasaria a PoC.
 
 ⚠️ **Atenção:** até setembro de 2026 as respostas dentro da janela de 24h são gratuitas. **A
-partir de outubro de 2026 a Meta volta a cobrá-las**, à tarifa de template de utilidade. As tarifas
-do Brasil saem até setembro — o custo por cliente precisa ser recalculado então. Isso dá mais peso
-ao teto de consultas por plano e aos canais que não cobram por mensagem (Telegram, Slack).
+partir de outubro de 2026 a Meta volta a cobrá-las**, à tarifa de template de utilidade: ≈ R$ 0,053
+por mensagem acima de **1.000 grátis por número/mês** (fonte secundária, 02/09/2026 — não
+confirmado na página oficial em 16/09). Parcela que **não** amortiza: cliente Time no teto ≈ R$ 477
+só de Meta, e a margem dele vai a −2%–29%. Isso dá peso real ao teto de consultas por plano e aos
+canais que não cobram por mensagem (Telegram, Slack).
 
 | Plano | Usuários | Mensal |
 |---|---|---|
@@ -299,8 +305,10 @@ ao teto de consultas por plano e aos canais que não cobram por mensagem (Telegr
 Cobra-se por usuário, não por consulta — o custo real é suporte, não token. Mas com teto de
 consultas, para um cliente entusiasmado não dobrar a conta de LLM.
 
-**Margem:** 1 cliente fundador fica no zero · 1 cliente pagante já dá 47–72% · 10 clientes dão
-67–84%. O segundo cliente a preço cheio já deixa a operação no azul.
+**Margem, hoje:** 1 cliente fundador: negativa a 55% · 1 cliente pagante: 52–82% · 10 clientes:
+91–97%. Com a tarifa da Meta a partir de outubro, no uso esperado: 34–65% (1 Time) e 74–80% (10
+Time); **no teto do plano, perto do zero**. O segundo cliente a preço cheio já deixa a operação no
+azul nos dois cenários — desde que não viva encostado no teto.
 
 **Gatilhos de gasto — nada sobe por antecipação:** VPS maior só se o p95 passar de 6s por CPU ·
 Postgres gerenciado só acima de 50 GB · Redis só se o contexto virar gargalo medido · Console só
@@ -348,7 +356,13 @@ p95 abaixo de 6s · zero vazamento entre clientes · nenhum churn em 3 meses.
 ## Ainda em aberto
 
 Não são decisões — são coisas a medir: **tarifa de mensagem de serviço do WhatsApp (imediato)** ·
-limites da API do 1º ERP · retenção zero no provedor de LLM · bake-off dos modelos · limiares
-calibrados no 1º cliente · p95 real · DPA com advogado.
+limites da API do 1º ERP · retenção zero no provedor de LLM · bake-off dos modelos **pagos**
+(Gemini já medido; OpenAI e Anthropic aguardam chave) · limiares calibrados no 1º cliente · p95
+real · cotação da VPS · DPA com advogado.
 
-Adiados por escolha: **preço** e **primeiro cliente**.
+Preço está decidido (D-038, [ORBI-COMERCIAL.md](ORBI-COMERCIAL.md)). Adiado por escolha: **o
+primeiro cliente** — que é a próxima etapa, não uma pendência.
+
+---
+
+*Este é o resumo. O índice completo da documentação está no [README](../README.md).*
