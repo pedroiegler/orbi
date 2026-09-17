@@ -472,7 +472,7 @@ def test_o_filtro_de_ramo_continua_nos_dois_documentos() -> None:
 
 # --- documentos concordam entre si e com o codigo -------------------------
 
-DOCS = sorted((ROOT / "docs").glob("ORBI-*.md")) + [ROOT / "docs" / "ORBI.md", ROOT / "README.md"]
+DOCS = [*sorted((ROOT / "docs").glob("ORBI-*.md")), ROOT / "docs" / "ORBI.md", ROOT / "README.md"]
 
 NUMEROS_APOSENTADOS = (
     # custo por cliente sem derivacao, substituido pela conta em ORBI-COMERCIAL
@@ -505,10 +505,14 @@ def test_nenhum_documento_carrega_numero_aposentado() -> None:
     """
     sobreviventes: list[str] = []
     for documento in DOCS:
-        texto = documento.read_text(encoding="utf-8")
-        for numero in NUMEROS_APOSENTADOS:
-            if numero in texto and "pessimista" not in texto.split(numero)[0][-400:]:
-                sobreviventes.append(f"{documento.name}: {numero!r}")
+        for linha in documento.read_text(encoding="utf-8").splitlines():
+            # O valor discrepante pode aparecer como cenario pessimista, desde
+            # que a propria linha diga isso — e a unica forma de cita-lo.
+            if "pessimista" in linha or "discrepante" in linha:
+                continue
+            for numero in NUMEROS_APOSENTADOS:
+                if numero in linha:
+                    sobreviventes.append(f"{documento.name}: {numero!r}")
     assert sobreviventes == [], f"numero aposentado ainda em uso: {sobreviventes}"
 
 
