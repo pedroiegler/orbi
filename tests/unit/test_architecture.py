@@ -491,6 +491,8 @@ NUMEROS_APOSENTADOS = (
     "tenant_id` em tudo",
     "saem até setembro",
     "Adiados por escolha: **preço",
+    # preferência de número invertida em D-048
+    "o cliente escolhe** (D-043)",
 )
 
 

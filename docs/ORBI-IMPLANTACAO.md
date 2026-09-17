@@ -11,7 +11,7 @@ problema.
 | Item | Quem resolve | Sem isso |
 |---|---|---|
 | Credencial de leitura no ERP | cliente | não há integração |
-| Número de WhatsApp Business (ver abaixo) | cliente **ou** equipe | não há canal |
+| Número de WhatsApp Business (ver abaixo) | **equipe** (padrão) — ou cliente, se insistir | não há canal |
 | Lista de usuários: nome, número, papel | cliente | ninguém consegue perguntar |
 | **20 perguntas reais escritas pelo cliente** | cliente | não há critério de aprovação |
 | Warm-up do número iniciado | equipe | risco de bloqueio no go-live |
@@ -27,33 +27,25 @@ O cliente preenche com as perguntas **do jeito que a equipe dele fala**. Esse
 arquivo vira o critério de aprovação — e o argumento que encerra o "não me
 convenceu".
 
-### De quem é o número (D-043)
+### De quem é o número: nosso, por padrão (D-048)
 
-O cliente escolhe entre duas, e as duas são oferecidas de verdade.
+**Padrão — o número é nosso.** Criamos na nossa conta da Meta, **num Business
+Portfolio só dele**, e operamos.
 
-**Opção A — o número é dele.** Ele cria (ou já tem) o Business Portfolio,
-verifica o CNPJ, cadastra o número e adiciona o Orbi como parceiro. Nada muda no
-ORBI: `orbi tenant set-token` grava o token e o `phone_number_id` do mesmo jeito.
+- Sobe imediato, sem depender de verificação de CNPJ do cliente nem de acesso.
+- Um portfólio por cliente hospedado, sem exceção: portfólio desabilitado por
+  violação de integridade trava *todas* as WABAs dentro dele; um portfólio para
+  todos significa que a violação de um derruba todos.
+- Nada muda no ORBI: `orbi tenant set-token` grava o token e o `phone_number_id`.
+- ⚠️ **O teto que agora é o limite real do padrão.** A Meta limita quantos Business Portfolios uma pessoa cria — fontes públicas divergem entre 2 e 5, e não conseguimos confirmar na documentação oficial. Com hospedar como padrão, esse teto chega no 2º ou 3º cliente. **Confirme o seu limite no Business Manager antes do segundo cliente e peça aumento à Meta**; se não vier, a partir do teto os próximos clientes usam o número deles, e isso precisa estar dito na venda.
 
-- Sobe em horas **se o portfólio já estiver verificado**. Se não estiver, a
-  verificação leva dias a semanas e pede documento — confirme isso *antes* de
-  prometer prazo.
-- Na saída, ele leva o número e a conversa. Sem migração, sem atrito.
+**Exceção — o número é dele, se ele insistir.** Ele cria (ou já tem) o Business
+Portfolio, verifica o CNPJ, cadastra o número e adiciona o Orbi como parceiro.
+Sobe em horas se o portfólio já estiver verificado; senão, dias a semanas com
+documento — confirme *antes* de prometer prazo. Na saída, ele leva o número sem
+migração.
 
-**Opção B — o número é nosso.** Criamos e operamos.
-
-- Sobe imediato. É o que destrava a PoC de quem ainda não tem portfólio.
-- **Cada cliente hospedado fica no próprio Business Portfolio.** Não é
-  preciosismo: portfólio desabilitado por violação de integridade trava *todas*
-  as WABAs dentro dele. Um portfólio para todos significa que a violação de um
-  derruba todos.
-- ⚠️ **Isso tem teto.** A Meta limita quantos portfólios uma pessoa pode criar —
-  as fontes públicas divergem entre 2 e 5, e não conseguimos confirmar na
-  documentação oficial. **Confirme o seu limite no Business Manager antes de
-  vender a opção B para o terceiro cliente.** Quando o teto chegar, hospedar
-  deixa de ser exceção operacional e vira decisão de preço.
-
-Registre a escolha na abertura do cliente. Ela muda o que acontece na saída dele,
+Registre qual foi na abertura do cliente. Ela muda o que acontece na saída dele,
 e descobrir isso no cancelamento é a pior hora.
 
 ---

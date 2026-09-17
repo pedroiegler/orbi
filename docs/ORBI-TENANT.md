@@ -22,11 +22,11 @@ O que acontece: cria o tenant, cria `tenant_settings` com os limiares padrão
 **Um número por tenant.** A identificação fica determinística e o risco de
 banimento fica isolado: um cliente com problema não derruba os outros.
 
-**De quem é o número, o cliente escolhe** (D-043). No Business Portfolio dele —
-o padrão, com custo zero para a operação, melhor posição na LGPD e saída limpa —
-ou no nosso, quando ele ainda não tem portfólio verificado e a espera mataria a
-PoC. O código é indiferente: guarda endereço, `phone_number_id` e token cifrado.
-O roteiro das duas está em [ORBI-IMPLANTACAO.md](ORBI-IMPLANTACAO.md).
+**O número é nosso, por padrão** (D-048): criado na nossa conta da Meta, num
+Business Portfolio separado por cliente, para controle e para subir hoje. O do
+cliente só entra se ele insistir. O código é indiferente: guarda endereço,
+`phone_number_id` e token cifrado. Roteiro e o teto de portfólios em
+[ORBI-IMPLANTACAO.md](ORBI-IMPLANTACAO.md).
 
 ## Token do canal
 

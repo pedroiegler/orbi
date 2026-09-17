@@ -1518,19 +1518,18 @@ coisas mudam: o custo por cliente precisa ser recalculado, o teto de consultas
 por plano deixa de ser só proteção contra abuso e vira controle de margem, e os
 canais que não cobram por mensagem (Telegram, Slack) ganham peso.
 
-## De quem é o número: as duas opções (D-043)
+## De quem é o número: nosso, por padrão (D-048)
 
-O cliente escolhe, e as duas são oferecidas de verdade — porque clientes chegam
-em estados diferentes, e recusar uma delas perde cliente por um motivo que não é
-de produto.
+**Criamos o número na nossa conta da Meta, em portfólio separado por cliente.**
+Por controle: subimos no dia, operamos nós, e não dependemos da verificação de CNPJ
+do cliente nem de ele nos dar acesso. O número dele só entra se ele insistir.
 
-| | **Número dele** | **Número nosso** |
+| | **Número nosso (padrão)** | **Número dele (se insistir)** |
 |---|---|---|
-| Como | ele verifica o CNPJ no Business Portfolio e libera nosso acesso | criamos e operamos |
-| Prazo | horas, **se** o portfólio já estiver verificado | imediato |
-| Se não estiver verificado | dias a semanas, com documento | — |
-| Na saída dele | leva o número e a conversa | precisa migrar |
-| Risco de portfólio | dele | **nosso** |
+| Como | criamos e operamos, num portfólio só dele | ele verifica o CNPJ no Business Portfolio e libera nosso acesso |
+| Prazo | imediato | horas **se** o portfólio já estiver verificado; senão dias a semanas |
+| Na saída dele | migramos o número, ou ele troca | leva o número e a conversa |
+| Risco de portfólio | **nosso** — daí um portfólio por cliente | dele |
 
 **No código não muda nada.** O Orbi guarda o endereço, o `phone_number_id` e o
 token cifrado; onde a WABA mora é assunto da Meta. Por isso esta é decisão
