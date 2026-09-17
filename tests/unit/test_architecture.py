@@ -468,3 +468,75 @@ def test_o_filtro_de_ramo_continua_nos_dois_documentos() -> None:
     assert "O filtro para qualquer ramo novo" in comercial
     assert comercial.count("| 6 |") >= 1, "as seis condicoes sumiram do filtro"
     assert "D-045" in comercial and "D-045" in decisoes
+
+
+# --- documentos concordam entre si e com o codigo -------------------------
+
+DOCS = sorted((ROOT / "docs").glob("ORBI-*.md")) + [ROOT / "docs" / "ORBI.md", ROOT / "README.md"]
+
+NUMEROS_APOSENTADOS = (
+    # custo por cliente sem derivacao, substituido pela conta em ORBI-COMERCIAL
+    "250–470",
+    "120–250/mês",
+    "1.200–2.500",
+    # margens calculadas a partir daqueles custos
+    "47–72%",
+    "67–84%",
+    # tarifa da Meta: valor discrepante de uma unica fonte, mantido so como cenario pessimista
+    "US$ 0,0098",
+    # afirmacoes que decisoes posteriores mudaram
+    "(role, tool)",
+    "(papel, tool)",
+    "14 tabelas",
+    "tenant_id` em tudo",
+    "saem até setembro",
+    "Adiados por escolha: **preço",
+)
+
+
+def test_nenhum_documento_carrega_numero_aposentado() -> None:
+    """Um numero corrigido num documento sobreviveu em outro tres vezes nesta
+    auditoria — primeiro no RESUMO, depois na especificacao, depois de novo.
+
+    A varredura que pegava isso vivia no historico do shell. Agora vive aqui:
+    quando um valor e substituido, ele entra nesta lista e o proximo `pytest`
+    aponta cada arquivo que ainda o repete. ORBI-DECISOES fica de fora porque
+    registrar o que era antes e o papel dele.
+    """
+    sobreviventes: list[str] = []
+    for documento in DOCS:
+        texto = documento.read_text(encoding="utf-8")
+        for numero in NUMEROS_APOSENTADOS:
+            if numero in texto and "pessimista" not in texto.split(numero)[0][-400:]:
+                sobreviventes.append(f"{documento.name}: {numero!r}")
+    assert sobreviventes == [], f"numero aposentado ainda em uso: {sobreviventes}"
+
+
+def test_a_tabela_de_planos_dos_documentos_e_a_do_codigo() -> None:
+    """Vender 'ate 5 usuarios' com o codigo aceitando 15 e promessa que o codigo
+    nao cumpre; o inverso e deixar dinheiro na mesa. Os dois documentos que
+    mostram a tabela ao cliente precisam repetir `core/plans.py` exatamente."""
+    from orbi.core.plans import PLANOS
+
+    nomes = {"Operacao": "Operação"}
+    for documento in ("ORBI-COMERCIAL.md", "ORBI-TENANT.md"):
+        texto = (ROOT / "docs" / documento).read_text(encoding="utf-8")
+        for plano in PLANOS.values():
+            if plano.codigo == "fundador" and documento == "ORBI-TENANT.md":
+                continue  # o TENANT lista so os planos de tabela
+            teto = f"{plano.teto_mensal:,}".replace(",", ".")
+            preco = f"{int(plano.mensal_brl):,}".replace(",", ".")
+            padrao = (
+                r"\|\s*\*{0,2}"
+                + nomes.get(plano.nome, plano.nome)
+                + r"\*{0,2}\s*\|\s*até "
+                + str(plano.max_usuarios)
+                + r"\s*\|\s*"
+                + re.escape(teto)
+                + r"\s*\|\s*\*?R\$ "
+                + re.escape(preco)
+            )
+            assert re.search(padrao, texto), (
+                f"{documento}: plano {plano.nome} diverge de core/plans.py "
+                f"(ate {plano.max_usuarios} / {teto} / R$ {preco})"
+            )
