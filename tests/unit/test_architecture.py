@@ -454,3 +454,17 @@ def test_every_prohibition_points_at_a_test_that_exists() -> None:
 
     assert total > 20, "os documentos perderam os ponteiros de teste"
     assert quebrados == [], f"proibicao sem guarda: {quebrados}"
+
+
+def test_o_filtro_de_ramo_continua_nos_dois_documentos() -> None:
+    """D-045 e citado como filtro de decisao comercial em dois lugares.
+
+    Se as seis condicoes sairem do ORBI-COMERCIAL, a decisao vira uma opiniao
+    lembrada por alguem em vez de um criterio que se aplica.
+    """
+    comercial = (ROOT / "docs" / "ORBI-COMERCIAL.md").read_text(encoding="utf-8")
+    decisoes = (ROOT / "docs" / "ORBI-DECISOES.md").read_text(encoding="utf-8")
+
+    assert "O filtro para qualquer ramo novo" in comercial
+    assert comercial.count("| 6 |") >= 1, "as seis condicoes sumiram do filtro"
+    assert "D-045" in comercial and "D-045" in decisoes

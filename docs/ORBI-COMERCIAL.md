@@ -55,6 +55,84 @@ números acima precisam ser revistos quando a tarifa do Brasil sair.
 
 ---
 
+# Para quem vender, nesta ordem (D-045)
+
+## Agora: distribuidor e atacado
+
+O cliente do MVP tem quatro marcas, e todas importam:
+
+| Marca | Por quê |
+|---|---|
+| **ERP com API oficial** | sem isso não há integração, e ler o banco direto é proibido |
+| **5 a 30 vendedores** que não têm acesso ao ERP | são eles que hoje ligam para o escritório perguntar estoque |
+| **Catálogo com nome abreviado e inconsistente** | é onde a resolução de entidade vale mais que uma busca comum |
+| **Custo e margem restritos a quem decide preço** | é onde a Field Policy vira diferencial em vez de detalhe |
+
+Material de construção, elétrica, hidráulica, autopeças, embalagens, alimentos.
+O vocabulário do produto já está calibrado para isso — "cimento", "tubo PVC",
+"saco", "metro" — e é esse acúmulo que fica difícil de copiar.
+
+**Vá fundo aqui até o terceiro cliente pagante.** É quando o `orbi onboard` passa
+a rodar em horas de verdade e o vocabulário aprendido começa a valer dinheiro.
+
+## Depois: rastreamento e logística
+
+A primeira expansão **não é um mercado novo — é o mesmo cliente comprando a
+segunda coisa.** Distribuidor tem frota ou transportadora, e "onde está a carga
+4471?" tem exatamente a forma de "quanto tem de cimento?": entidade resolvida,
+fato consultado, campo sensível por papel, erro visível.
+
+## O Orbi está preso a ERP?
+
+**Não.** Medindo o código: cerca de **12% está preso ao domínio** (as tools, os
+DTOs, o adapter do Odoo, a lista de campos, os templates, os datasets de eval).
+Os outros ~88% — canal, identidade, Policy Layer, papéis, resolução, auditoria,
+LLM, deadline, RLS, observabilidade — servem a qualquer sistema de registro.
+
+Mas **o código é a parte barata**. O que custa num ramo novo é saber quais são as
+quatro perguntas certas, o adapter de referência, os evals, o vocabulário
+acumulado e um cliente que dê credibilidade. É 12% do código e praticamente 100%
+do conhecimento de mercado.
+
+A razão que decide:
+
+```
+2º cliente, mesmo ramo e mesmo ERP   →  horas
+2º cliente, ERP diferente            →  dias  (um adapter + Conformance Kit)
+1º cliente de um ramo novo           →  semanas, e sem referência nenhuma
+```
+
+Enquanto a linha de cima não estiver provada com dinheiro, mudar de direção é
+caro. A opcionalidade já está guardada na arquitetura — o erro seria **gastá-la
+antes do primeiro cliente**.
+
+## O filtro para qualquer ramo novo
+
+Um ramo serve quando **as seis** valem. Menos que seis, recuse:
+
+| # | Condição | O que quebra se faltar |
+|---|---|---|
+| 1 | Existe **API oficial** do sistema de registro | não há adapter — ler banco direto é proibido |
+| 2 | As perguntas **se repetem** | o vocabulário não acumula e o ativo durável não existe |
+| 3 | A resposta é um **fato**, não um julgamento | o template não serve, e o LLM teria que redigir |
+| 4 | Quem pergunta **não tem acesso** ao sistema | ele consulta sozinho — não há produto |
+| 5 | Há **campos sensíveis por papel** | a Field Policy, que é o diferencial, não vale nada |
+| 6 | Erro é **visível e barato** | o custo do erro mata a confiança antes de ela nascer |
+
+### Os ramos já avaliados
+
+| Ramo | Veredito | Onde trava |
+|---|---|---|
+| **Distribuidor / atacado** | ✅ o MVP | — |
+| **Rastreamento / logística** | ✅ a primeira expansão | — |
+| **Empréstimo / crédito** | ⚠️ risco alto | **item 4**: quem pergunta costuma ser o próprio devedor, e aí é B2C — o cadastro prévio obrigatório, que é a base da segurança, não escala para milhares de tomadores. E **item 6**: errar saldo devedor não é ticket de suporte, é problema jurídico |
+| **Seguros** | ❌ recusar | **item 3**: cobertura de apólice é interpretação de contrato, não campo de banco. Responder exigiria o LLM redigir — a única linha que o produto não cruza. Atender seguros exigiria desmontar o que o diferencia |
+
+O detalhe que vale guardar: seguros é um **não técnico**, não um não de mercado.
+O mercado é grande; a arquitetura é que não serve, e mudá-la custaria o produto.
+
+---
+
 # O primeiro cliente: a oferta de fundador
 
 Não venda o plano cheio para o primeiro. Venda isto:

@@ -634,6 +634,56 @@ Número desconhecido tem janela própria e agressiva: 3 tentativas em 10 minutos
 
 ---
 
+# Parte 2.5 — O Orbi está preso a ERP? (D-045)
+
+Não. E dá para medir, em vez de opinar.
+
+```
+preso ao domínio   ~1.750 linhas   tools, DTOs, adapter Odoo,
+                                   lista de campos, templates, evals
+reaproveitado      ~6.700 linhas   canal, identidade, policy, papéis,
+   inteiro                         resolução, auditoria, LLM, deadline,
+                                   RLS, rate limit, observabilidade
+                   ─────────────
+total               14.579
+```
+
+**Cerca de 12% do código é do domínio.** E as menções a ERP no núcleo são
+**nome**, não acoplamento:
+
+```python
+erp_entity_id      # = "id no sistema de origem"
+erp_supported_tools # = "tools que o sistema de origem atende"
+erp_payload_hash   # = "hash do que o sistema devolveu"
+```
+
+Nenhum módulo central ramifica em semântica de ERP — o teste de arquitetura
+`test_no_module_branches_on_the_erp_name` garante isso. Renomear `erp_*` para
+algo neutro custaria uma tarde.
+
+Ou seja: o Orbi **já não é um produto de ERP**. É uma camada de linguagem natural
+sobre um sistema de registro, com permissão por papel e resposta por template —
+que por acaso foi instanciada primeiro em ERP.
+
+## Mas isso não quer dizer que mudar de ramo seja barato
+
+O código é a parte barata. Num ramo novo você reaproveita a arquitetura inteira e
+começa do zero no que realmente custa: **saber quais são as quatro perguntas
+certas**, o adapter de referência com Conformance Kit, os evals, o vocabulário
+acumulado e um cliente que dê credibilidade. São 12% do código e praticamente
+100% do conhecimento de mercado.
+
+Por isso a decisão é ir fundo em **distribuidor e atacado** até o terceiro
+cliente pagante, e só então expandir para **rastreamento** — que não é mercado
+novo, é o mesmo cliente comprando a segunda coisa. Empréstimo e seguros foram
+avaliados e recusados, com o motivo escrito. O filtro completo — seis condições
+que um ramo precisa cumprir — está em [ORBI-COMERCIAL.md](ORBI-COMERCIAL.md).
+
+A opcionalidade já está guardada na arquitetura. O erro seria gastá-la antes do
+primeiro cliente.
+
+---
+
 # Parte 3 — O que ficou de fora, e por quê
 
 Isto é tão importante quanto o que entrou. Nada aqui foi esquecido — cada item foi
