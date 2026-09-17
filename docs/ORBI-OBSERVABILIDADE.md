@@ -114,6 +114,11 @@ a tabela de regressão histórica. Sem ela, comparar semanas vira opinião.
 
 ### O que roda no CI, hoje
 
+O CI roda **em cada merge para `main`**, em PR para `main` e sob demanda — não em
+push para `development`. A verificação é por entrega, não por commit (D-046).
+Depois de um merge, confira o resultado em `github.com/pedroiegler/orbi/actions`:
+CI vermelho manda e-mail; CI que ninguém olha não protege nada.
+
 O build normal roda os evals com o provedor **`rule_based`** — determinístico,
 sem rede, sem cota. Isso prova a lógica do turno, e **não prova o failover**.
 

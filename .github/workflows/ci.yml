@@ -1,11 +1,14 @@
 # ORBI — CI. Regressao de eval bloqueia merge (ORBI.md secao 14).
 name: ci
 
+# Roda em cada merge para main, em PR para main, e sob demanda. Nao roda em
+# push para development: a verificacao e por entrega, nao por commit (D-046).
 on:
   push:
-    branches: [main, development]
+    branches: [main]
   pull_request:
-    branches: [main, development]
+    branches: [main]
+  workflow_dispatch:
 
 env:
   ORBI_ENV: test

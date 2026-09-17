@@ -544,3 +544,33 @@ def test_a_tabela_de_planos_dos_documentos_e_a_do_codigo() -> None:
                 f"{documento}: plano {plano.nome} diverge de core/plans.py "
                 f"(ate {plano.max_usuarios} / {teto} / R$ {preco})"
             )
+
+
+# --- o ambiente de teste tem o que a suite exercita ----------------------
+
+SDKS_EXERCITADOS_PELA_SUITE = {
+    "google.genai": "llm",
+    "anthropic": "llm",
+    "openai": "llm",
+    "langfuse": "observability",
+}
+
+
+def test_o_ambiente_tem_os_sdks_que_a_suite_exercita() -> None:
+    """Sem isto, um ambiente incompleto falha em onze testes com
+    "No module named google" — e ninguem le onze falhas. O CI ficou vermelho
+    29 runs seguidos assim, com a suite verde na maquina de quem tinha os SDKs.
+
+    Este teste falha uma vez e diz o que instalar.
+    """
+    import importlib.util
+
+    faltando = [
+        f"{modulo} (extra `{extra}`)"
+        for modulo, extra in SDKS_EXERCITADOS_PELA_SUITE.items()
+        if importlib.util.find_spec(modulo.split(".")[0]) is None
+    ]
+    assert faltando == [], (
+        f"SDKs ausentes no ambiente de teste: {faltando}. "
+        'Instale com `pip install -e ".[dev]"` — o extra dev inclui orbi[llm,observability].'
+    )
