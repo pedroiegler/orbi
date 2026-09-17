@@ -286,8 +286,8 @@ cotação — a maior parcela e a única que ninguém verificou) + LLM de R$ 6�
 não cresce com o cliente — é o que faz a margem melhorar com escala. A conta aberta está em
 [ORBI-COMERCIAL.md](ORBI-COMERCIAL.md).
 
-**De quem é o número, o cliente escolhe** (D-043): no portfólio dele — o padrão, melhor para o
-bolso e para a LGPD — ou no nosso, quando a verificação da Meta atrasaria a PoC.
+**O número é nosso, por padrão** (D-048): criado na nossa conta da Meta, num portfólio separado
+por cliente, por controle. O do cliente só se ele insistir. Atenção ao teto de portfólios da Meta.
 
 ⚠️ **Atenção:** até setembro de 2026 as respostas dentro da janela de 24h são gratuitas. **A
 partir de outubro de 2026 a Meta volta a cobrá-las**, à tarifa de template de utilidade — a data e a

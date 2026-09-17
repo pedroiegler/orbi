@@ -278,12 +278,31 @@ resposta reflete isso. A fonte da verdade continua sendo o ERP dele.
 mensagens dentro da janela de 24 h voltam a ter custo. Dizer isso na venda evita
 a conversa ruim em novembro.
 
-### As duas origens de número (D-043)
+### De quem é o número: nosso, por padrão (D-048)
 
-O cliente escolhe, e as duas são oferecidas de verdade:
+**Criamos o número na nossa conta da Meta, em portfólio separado por cliente.** É
+o padrão, por controle: subimos hoje, operamos nós, e não dependemos da verificação
+de CNPJ do cliente nem de ele nos dar acesso. O número dele só entra **se ele
+insistir** — e aí vale, sem atrito no código.
 
-| | **Número dele** | **Número nosso** |
+| | **Número nosso (padrão)** | **Número dele (se insistir)** |
 |---|---|---|
+| Como | criamos e operamos, em portfólio próprio para ele | ele verifica o CNPJ no Business Portfolio e libera nosso acesso |
+| Prazo para subir | imediato | horas **se** o portfólio já estiver verificado; senão dias a semanas |
+| Na saída | migramos o número para ele, ou ele troca | leva o número e a conversa |
+| Risco de portfólio | **nosso** — por isso um portfólio por cliente | dele |
+
+A frase para a venda: *"O número fica na nossa conta, sobe hoje e a operação é
+nossa. Se um dia você quiser levar, migramos. Se preferir usar o seu desde o
+início, também dá."*
+
+O que **não** dizer: que tanto faz. Portfólio da Meta desabilitado trava todas as
+WABAs dentro dele — cada cliente hospedado fica em portfólio separado, sem
+exceção.
+
+⚠️ **O teto que agora é o limite real do padrão.** A Meta limita quantos Business Portfolios uma pessoa cria — fontes públicas divergem entre 2 e 5, e não conseguimos confirmar na documentação oficial. Com hospedar como padrão, esse teto chega no 2º ou 3º cliente. **Confirme o seu limite no Business Manager antes do segundo cliente e peça aumento à Meta**; se não vier, a partir do teto os próximos clientes usam o número deles, e isso precisa estar dito na venda.
+
+---|---|---|
 | Como | ele verifica o CNPJ no Business Portfolio e libera nosso acesso | criamos e operamos para ele |
 | Prazo para subir | horas, **se** o portfólio já estiver verificado | imediato |
 | Se não estiver verificado | dias a semanas, com documento | — |

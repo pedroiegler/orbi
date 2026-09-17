@@ -1129,9 +1129,9 @@ com o cliente: **em escala, o custo por cliente cai para ≈ R$ 21–70/mês**, 
 margem melhorar do segundo cliente em diante. A conta aberta está em
 [ORBI-COMERCIAL.md](ORBI-COMERCIAL.md).
 
-**De quem é o número de WhatsApp, o cliente escolhe** (D-043): no Business Portfolio dele — o
-padrão, custo zero para a operação e melhor posição na LGPD — ou no nosso, quando a verificação
-da Meta atrasaria a PoC. O código é indiferente às duas.
+**O número de WhatsApp é nosso, por padrão** (D-048): criado na nossa conta da Meta, num Business
+Portfolio separado por cliente, por controle e para subir no dia. O do cliente só entra se ele
+insistir. O código é indiferente às duas; o teto de portfólios da Meta não é — ver ORBI-IMPLANTACAO.
 
 Sobre a tarifa da Meta, um ponto que exige atenção imediata: até setembro de 2026, respostas em
 texto livre dentro da janela de 24 horas aberta pelo usuário são gratuitas — exatamente o fluxo do
