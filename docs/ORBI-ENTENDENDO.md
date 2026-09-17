@@ -1440,10 +1440,10 @@ janela não custam nada. Foi assim desde novembro de 2024.
 
 ⚠️ **Isso acaba em 1º de outubro de 2026.** A partir dessa data, as respostas de
 serviço dentro da janela voltam a ser cobradas, à mesma tarifa por mensagem dos
-templates de utilidade de cada país. Para o Brasil, uma fonte secundária (02/09/2026,
-citando a documentação da Meta) traz ≈ US$ 0,0098 ≈ R$ 0,053 por mensagem e **1.000
-mensagens de serviço grátis por número/mês** — ainda não confirmado por nós na página
-oficial em 16/09/2026. As tarifas do Brasil devem ser publicadas
+templates de utilidade de cada país. Para o Brasil: a **data** (1º de outubro) e a **paridade** com
+template de utilidade estão na página oficial da Meta; o **valor** — R$ 0,0350 por mensagem,
+rate card BRL — e a **franquia de 1.000 mensagens de serviço grátis por número/mês** vêm de
+fontes secundárias concordantes, conferidas em 16/09/2026. As tarifas do Brasil devem ser publicadas
 pela Meta **até 1º de setembro de 2026** — ou seja, dias.
 
 Três consequências diretas para o negócio, e vale colocar no calendário:
@@ -1467,9 +1467,9 @@ fazendo 15 perguntas por dia útil:
 ```
 
 - **Hoje:** R$ 0 de mensagem.
-- **Depois de outubro:** (3.300 − 1.000 grátis) × ≈ R$ 0,053 ≈ **R$ 122/mês** — e no teto do
-  plano Time (10.000), ≈ R$ 477. É a parcela que não amortiza; a conta completa está em
-  [ORBI-COMERCIAL.md](ORBI-COMERCIAL.md).
+- **Depois de outubro:** (3.300 − 1.000 grátis) × R$ 0,035 ≈ **R$ 80/mês** — e no teto do plano
+  Time (10.000), ≈ R$ 315. É a parcela que não amortiza; a conta completa e o que está ou não
+  confirmado estão em [ORBI-COMERCIAL.md](ORBI-COMERCIAL.md).
 
 Se a tarifa ficar na casa de R$ 0,04 a R$ 0,08 por mensagem — a faixa dos
 templates de utilidade no Brasil antes da gratuidade —, isso dá algo entre

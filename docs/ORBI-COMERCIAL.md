@@ -323,7 +323,7 @@ muito diferente:
 |---|---|---|---|
 | VPS, Postgres e backup | **fixo** — não cresce com o cliente | R$ 150 a 400/mês no total | ⚠️ **estimativa, sem cotação** — peça o preço real antes de decidir |
 | LLM | por pergunta | R$ 6 a 30 por cliente | **medido**: 890 tokens de entrada, 24 de saída, contra a API real ([ORBI-MODELOS.md](ORBI-MODELOS.md)) |
-| Mensagens do WhatsApp | por mensagem **acima de 1.000/mês por número**, a partir de out/2026 | ≈ US$ 0,0098 ≈ **R$ 0,053** por mensagem | ⚠️ fonte secundária — SendPulse, 02/09/2026, citando a documentação da Meta; **não confirmado na página oficial em 16/09/2026**, que referencia o rate card em arquivo externo |
+| Mensagens do WhatsApp | por mensagem **acima de 1.000/mês por número**, a partir de out/2026 | **R$ 0,035** por mensagem (rate card BRL) | data e paridade com utilidade: **página oficial da Meta**; valor: rate card BRL via 3 fontes concordantes; franquia de 1.000: só fontes secundárias (16/09/2026) |
 
 A parcela fixa é o que faz a margem melhorar com escala: o décimo cliente divide
 a mesma VPS que o segundo.
@@ -343,39 +343,45 @@ marginal do décimo é praticamente o mesmo do segundo.
 
 ## A mesma conta a partir de outubro de 2026
 
-O que se sabe da tarifa, e de onde vem — porque este é o único número do
-documento que ainda não está confirmado na fonte primária:
+O que se sabe da tarifa, e **o quanto cada fato está confirmado** (conferido em
+16/09/2026):
 
-- **Cobrança a partir de 1º de outubro de 2026** para respostas dentro da janela
-  de 24 h (a página oficial da Meta confirma "pricing updates launching October 1,
-  2026").
-- **1.000 mensagens de serviço grátis por número, por mês**; cobra-se da 1.001ª em
-  diante, sem acumular (fonte secundária — SendPulse, 02/09/2026, citando a documentação da Meta; **não confirmado na página oficial em 16/09/2026**, que referencia o rate card em arquivo externo).
-- **Mensagem de serviço custa o mesmo que template de utilidade** no mesmo país;
-  no Brasil, **≈ US$ 0,0098 ≈ R$ 0,053** ao dólar de R$ 5,40 (mesma fonte).
-- Cada turno é **uma** mensagem cobrada. Quando o turno passa de 2,5 s, o aviso
-  "consultando o sistema da empresa..." é uma **segunda** mensagem cobrada — hoje
-  raro (turno medido em 1,2 s), mas é custo que aparece no dia em que o ERP do
-  cliente ficar lento.
+| Fato | Confirmação |
+|---|---|
+| Cobrança por mensagem de serviço **a partir de 1º de outubro de 2026** | ✅ **página oficial da Meta** ("Effective October 1, 2026, Meta will charge on a per-message basis for service messages") |
+| Mensagem de serviço custa **o mesmo que utilidade/autenticação** no mesmo mercado | ✅ **página oficial da Meta** |
+| Brasil: **R$ 0,0350** por mensagem de utilidade (rate card BRL, desde 01/07/2026) | ⚠️ três fontes secundárias concordantes, coerentes com o US$ 0,0068 de uma quarta; a Meta publica o rate card em arquivo que não conseguimos abrir |
+| **1.000 mensagens de serviço grátis por número, por mês**; cobra da 1.001ª, sem acumular | ⚠️ várias fontes secundárias (SendPulse, Wati, ChatMaxima…); **não está na página oficial** |
+| Uma fonte cita US$ 0,0098 (≈ R$ 0,053) | valor discrepante das demais; tratado como cenário pessimista abaixo |
 
-**Reconfira na página oficial antes de fechar proposta**, e refaça esta tabela se
-o valor mudar.
+Cada turno é **uma** mensagem cobrada. Quando o turno passa de 2,5 s, o aviso
+"consultando o sistema da empresa..." é uma **segunda** mensagem cobrada — hoje
+raro (turno medido em 1,2 s), mas é custo que aparece no dia em que o ERP do
+cliente ficar lento.
 
-| Situação | Turnos/mês | Cobradas (−1.000) | Custo Meta | Custo total | Margem |
+**Reconfira o rate card BRL na página oficial antes de fechar proposta.** Se o
+valor ou a franquia forem outros, esta é a única tabela a refazer — os outros
+documentos apontam para ela.
+
+| Situação | Turnos/mês | Cobradas (−1.000) | Meta (R$ 0,035) | Custo total | Margem |
 |---|---|---|---|---|---|
-| Essencial, uso esperado | ~1.650 | 650 | ≈ R$ 34 | R$ 190–464 | 5–61% |
-| Essencial, **no teto** | 3.000 | 2.000 | ≈ R$ 106 | R$ 262–536 | −9% a 47% |
-| Time, uso esperado | ~4.000 | 3.000 | ≈ R$ 159 | R$ 315–589 | 34–65% |
-| Time, **no teto** | 10.000 | 9.000 | ≈ R$ 477 | R$ 633–907 | **−2% a 29%** |
-| Operação, **no teto** | 20.000 | 19.000 | ≈ R$ 1.007 | R$ 1.163–1.437 | 4–22% |
-| 10 clientes Time, uso esperado | ~40.000 | 30.000 | ≈ R$ 1.590 | R$ 1.800–2.290 | 74–80% |
+| Essencial, uso esperado | ~1.650 | 650 | ≈ R$ 23 | R$ 179–429 | 12–63% |
+| Essencial, **no teto** | 3.000 | 2.000 | ≈ R$ 70 | R$ 230–480 | 2–53% |
+| Time, uso esperado | ~4.000 | 3.000 | ≈ R$ 105 | R$ 261–535 | 40–71% |
+| Time, **no teto** | 10.000 | 9.000 | ≈ R$ 315 | R$ 495–745 | 16–44% |
+| Operação, **no teto** | 20.000 | 19.000 | ≈ R$ 665 | R$ 875–1.125 | 24–41% |
+| 10 clientes Time, uso esperado | ~40.000 | 30.000 | ≈ R$ 1.050 | R$ 1.260–1.750 | 80–86% |
+
+Custo total = infra fixa R$ 150–400 (estimativa, sem cotação) + LLM (medido) +
+Meta. **Cenário pessimista** (R$ 0,053): multiplique a coluna Meta por 1,5 — Time
+no teto vai a ≈ R$ 477 e a margem dele a −2%–29%.
 
 Três leituras dessa tabela:
 
 1. **Cliente pequeno quase não paga Meta.** A franquia de 1.000 absorve a maior
-   parte do uso esperado do Essencial.
-2. **Um cliente Time que viva encostado no teto fica perto do zero a zero.** É
-   isto que "o teto vira controle de margem" quer dizer, com número: encostar no
-   teto de forma consistente é sinal para subir de plano, e a conta prova por quê.
+   parte do uso esperado do Essencial — se a franquia se confirmar.
+2. **Um cliente Time que viva encostado no teto perde metade da margem.** É isto
+   que "o teto vira controle de margem" quer dizer, com número: encostar no teto
+   de forma consistente é sinal para subir de plano, e a conta prova por quê.
 3. **A parcela da Meta não amortiza** — cresce por turno, para sempre. A infra
    amortiza; o LLM é pequeno; a Meta é a linha que decide a margem em escala.

@@ -1130,9 +1130,9 @@ na LGPD.
 Sobre a tarifa da Meta, um ponto que exige atenção imediata: até setembro de 2026, respostas em
 texto livre dentro da janela de 24 horas aberta pelo usuário são gratuitas — exatamente o fluxo do
 Orbi. **A partir de outubro de 2026 a Meta volta a cobrar essas mensagens**, à mesma tarifa por
-mensagem dos templates de utilidade em cada país. Para o Brasil, fonte secundária (02/09/2026) indica
-≈ US$ 0,0098/mensagem com 1.000 mensagens de serviço grátis por número/mês; a página oficial confirma a
-data mas expõe o rate card só em arquivo externo — reconferir antes de proposta.
+mensagem dos templates de utilidade em cada país. A página oficial da Meta confirma a data e que
+o preço é o de utilidade; para o Brasil o rate card BRL indica R$ 0,0350/mensagem, com 1.000 mensagens
+de serviço grátis por número/mês segundo fontes secundárias (16/09/2026) — reconferir antes de proposta.
 
 Três implicações: o custo por cliente precisa ser recalculado assim que a tabela sair; o teto de
 consultas por plano deixa de ser só proteção contra abuso e passa a ser controle de margem; e os
