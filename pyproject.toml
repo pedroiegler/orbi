@@ -3,7 +3,7 @@ name = "orbi"
 version = "0.1.0"
 description = "Camada de linguagem natural sobre ERPs — o LLM interpreta, o codigo autoriza, executa e redige."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 license = { text = "Proprietary" }
 authors = [{ name = "Orbi" }]
 
@@ -70,7 +70,7 @@ filterwarnings = ["error::DeprecationWarning:orbi.*"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py313"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
@@ -81,7 +81,7 @@ ignore = ["B008", "RUF001", "RUF002", "RUF003"]
 "tests/*" = ["E501"]
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.13"
 strict = true
 mypy_path = "src"
 packages = ["orbi"]

@@ -334,7 +334,9 @@ Permissão efetiva = `tenant_tools ∩ role_tools`. Retorno tipado: `ALLOW` ou `
 
 **Field Policy** é a camada que quase todo projeto esquece. Vendedor consulta preço mas não vê
 custo nem margem — e essa filtragem acontece na **saída do Adapter**, por whitelist de campos por
-`(role, tool)`. Esconder campo via instrução de prompt funciona até o dia em que não funciona.
+`(permissão, tool)` — indexada pela permissão (`price:read_cost`), não pelo nome do papel, para que
+cada cliente possa ter os próprios papéis sem tocar nesta camada (D-040). Esconder campo via
+instrução de prompt funciona até o dia em que não funciona.
 
 Cada decisão grava o `policy_version_hash`. Meses depois, é possível provar qual configuração
 autorizou aquela operação.
@@ -375,7 +377,8 @@ responde "2" e o Runtime resolve sem nova chamada ao LLM.
 `NOT_FOUND` sugere o mais próximo e pede o código.
 
 O alias **não** é gravado na primeira escolha: entra com `confidence=low` e só é promovido a
-`confirmed` após dois usos bem-sucedidos sem correção. Isso evita que um toque errado envenene a
+`confirmed` após dois usos bem-sucedidos sem correção — e a cascata **lê** essa confiança: alias
+`low` que discorda do catálogo vira pergunta, não resposta (D-044). Isso evita que um toque errado envenene a
 resolução daquele tenant permanentemente.
 
 Esse vocabulário acumulado é dado proprietário e é a defesa competitiva mais durável do produto —
@@ -642,7 +645,7 @@ Cada conceito tem um mecanismo concreto, não apenas uma intenção:
 | Authentication | `user_identities` por canal, cadastro prévio obrigatório, re-verificação por código |
 | Authorization | Policy Layer deny-by-default, decisão tipada com `reason_code` |
 | RBAC | capabilities internas; 3 papéis padrão (`sales_rep`, `finance`, `admin`) e papéis próprios por cliente (D-040) |
-| Field-level | Field Policy na saída do Adapter, whitelist por `(role, tool)` |
+| Field-level | Field Policy na saída do Adapter, whitelist por `(permissão, tool)` |
 | Tenant isolation | `tenant_id` em tudo + RLS + canary tenant no CI |
 | RLS | Role sem `BYPASSRLS`, `FORCE ROW LEVEL SECURITY`, `SET LOCAL app.tenant_id` |
 | Secrets | Credenciais de ERP cifradas na aplicação, chave fora do banco |
@@ -1127,7 +1130,9 @@ na LGPD.
 Sobre a tarifa da Meta, um ponto que exige atenção imediata: até setembro de 2026, respostas em
 texto livre dentro da janela de 24 horas aberta pelo usuário são gratuitas — exatamente o fluxo do
 Orbi. **A partir de outubro de 2026 a Meta volta a cobrar essas mensagens**, à mesma tarifa por
-mensagem dos templates de utilidade em cada país. As tarifas do Brasil são publicadas até setembro.
+mensagem dos templates de utilidade em cada país. Para o Brasil, fonte secundária (02/09/2026) indica
+≈ US$ 0,0098/mensagem com 1.000 mensagens de serviço grátis por número/mês; a página oficial confirma a
+data mas expõe o rate card só em arquivo externo — reconferir antes de proposta.
 
 Três implicações: o custo por cliente precisa ser recalculado assim que a tabela sair; o teto de
 consultas por plano deixa de ser só proteção contra abuso e passa a ser controle de margem; e os

@@ -50,8 +50,8 @@ Se um cliente encostar no teto de forma consistente, isso não é problema — �
 
 ⚠️ **A partir de 1º de outubro de 2026**, a Meta volta a cobrar as respostas
 dentro da janela de 24 horas. Aí o teto deixa de ser só proteção contra abuso e
-passa a ser **controle de margem** — cada consulta terá custo de mensagem. Os
-números acima precisam ser revistos quando a tarifa do Brasil sair.
+passa a ser **controle de margem** — cada consulta terá custo de mensagem. O
+valor e a conta estão em "Onde a margem fica", no fim deste documento.
 
 ---
 
@@ -323,7 +323,7 @@ muito diferente:
 |---|---|---|---|
 | VPS, Postgres e backup | **fixo** — não cresce com o cliente | R$ 150 a 400/mês no total | ⚠️ **estimativa, sem cotação** — peça o preço real antes de decidir |
 | LLM | por pergunta | R$ 6 a 30 por cliente | **medido**: 890 tokens de entrada, 24 de saída, contra a API real ([ORBI-MODELOS.md](ORBI-MODELOS.md)) |
-| Mensagens do WhatsApp | por mensagem, **a partir de out/2026** | R$ 130 a 265 por cliente | tarifa do Brasil ainda não publicada |
+| Mensagens do WhatsApp | por mensagem **acima de 1.000/mês por número**, a partir de out/2026 | ≈ US$ 0,0098 ≈ **R$ 0,053** por mensagem | ⚠️ fonte secundária — SendPulse, 02/09/2026, citando a documentação da Meta; **não confirmado na página oficial em 16/09/2026**, que referencia o rate card em arquivo externo |
 
 A parcela fixa é o que faz a margem melhorar com escala: o décimo cliente divide
 a mesma VPS que o segundo.
@@ -343,16 +343,39 @@ marginal do décimo é praticamente o mesmo do segundo.
 
 ## A mesma conta a partir de outubro de 2026
 
-Com a tarifa da Meta, some R$ 130 a 265 **por cliente** — e essa parcela **não**
-amortiza:
+O que se sabe da tarifa, e de onde vem — porque este é o único número do
+documento que ainda não está confirmado na fonte primária:
 
-| Situação | Receita | Custo | Margem |
-|---|---|---|---|
-| 1 cliente pagante | R$ 890 | R$ 286–695 | 22–68% |
-| 3 clientes | ~R$ 2.200 | R$ 558–1.285 | 42–75% |
-| 10 clientes | ~R$ 7.500 | R$ 1.510–3.350 | 55–80% |
+- **Cobrança a partir de 1º de outubro de 2026** para respostas dentro da janela
+  de 24 h (a página oficial da Meta confirma "pricing updates launching October 1,
+  2026").
+- **1.000 mensagens de serviço grátis por número, por mês**; cobra-se da 1.001ª em
+  diante, sem acumular (fonte secundária — SendPulse, 02/09/2026, citando a documentação da Meta; **não confirmado na página oficial em 16/09/2026**, que referencia o rate card em arquivo externo).
+- **Mensagem de serviço custa o mesmo que template de utilidade** no mesmo país;
+  no Brasil, **≈ US$ 0,0098 ≈ R$ 0,053** ao dólar de R$ 5,40 (mesma fonte).
+- Cada turno é **uma** mensagem cobrada. Quando o turno passa de 2,5 s, o aviso
+  "consultando o sistema da empresa..." é uma **segunda** mensagem cobrada — hoje
+  raro (turno medido em 1,2 s), mas é custo que aparece no dia em que o ERP do
+  cliente ficar lento.
 
-É por isso que o teto de consultas deixa de ser proteção contra abuso e vira
-controle de margem naquela data. **Refaça esta tabela com a tarifa real quando
-ela sair** — as duas colunas de custo aqui são as únicas do documento que
-dependem de um número que ninguém publicou ainda.
+**Reconfira na página oficial antes de fechar proposta**, e refaça esta tabela se
+o valor mudar.
+
+| Situação | Turnos/mês | Cobradas (−1.000) | Custo Meta | Custo total | Margem |
+|---|---|---|---|---|---|
+| Essencial, uso esperado | ~1.650 | 650 | ≈ R$ 34 | R$ 190–464 | 5–61% |
+| Essencial, **no teto** | 3.000 | 2.000 | ≈ R$ 106 | R$ 262–536 | −9% a 47% |
+| Time, uso esperado | ~4.000 | 3.000 | ≈ R$ 159 | R$ 315–589 | 34–65% |
+| Time, **no teto** | 10.000 | 9.000 | ≈ R$ 477 | R$ 633–907 | **−2% a 29%** |
+| Operação, **no teto** | 20.000 | 19.000 | ≈ R$ 1.007 | R$ 1.163–1.437 | 4–22% |
+| 10 clientes Time, uso esperado | ~40.000 | 30.000 | ≈ R$ 1.590 | R$ 1.800–2.290 | 74–80% |
+
+Três leituras dessa tabela:
+
+1. **Cliente pequeno quase não paga Meta.** A franquia de 1.000 absorve a maior
+   parte do uso esperado do Essencial.
+2. **Um cliente Time que viva encostado no teto fica perto do zero a zero.** É
+   isto que "o teto vira controle de margem" quer dizer, com número: encostar no
+   teto de forma consistente é sinal para subir de plano, e a conta prova por quê.
+3. **A parcela da Meta não amortiza** — cresce por turno, para sempre. A infra
+   amortiza; o LLM é pequeno; a Meta é a linha que decide a margem em escala.

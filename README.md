@@ -151,7 +151,7 @@ dimensões. Sem Redis, sem fila, sem worker — entram quando houver gargalo med
 ## Testes
 
 ```bash
-pytest -q                       # 361 testes (391 com um Odoo vivo)
+pytest -q                       # a suíte inteira; com um Odoo vivo, os testes contra ele também
 ruff check src tests && mypy src/orbi
 
 ORBI_ODOO_URL=http://localhost:8069 pytest tests/conformance tests/e2e -q
@@ -246,7 +246,7 @@ configuração, isolamento, auditoria, contexto, vocabulário aprendido e o índ
 de resolução.
 
 O projeto começa pequeno e deliberadamente estreito: **um canal, um ERP, quatro
-operações, três papéis, nenhuma tela.** O crescimento acontece dentro da Fase 1 —
+operações, três papéis padrão (customizáveis por cliente), nenhuma tela.** O crescimento acontece dentro da Fase 1 —
 mais clientes, mais tools, mais ERPs — sempre puxado por problema real e nunca
 por tecnologia disponível.
 
