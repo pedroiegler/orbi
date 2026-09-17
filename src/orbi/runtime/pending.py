@@ -37,7 +37,7 @@ class PendingChoice:
 
 
 def parse_choice(message: str) -> int | None:
-    """"2", "opcao 2", "2)" — tudo vira 2. Qualquer outra coisa e None."""
+    """ "2", "opcao 2", "2)" — tudo vira 2. Qualquer outra coisa e None."""
     match = _CHOICE_RE.match(message.strip())
     if match is None:
         return None
@@ -142,7 +142,5 @@ def resolve_choice(
 
 def purge_expired(session: Session, *, now: datetime | None = None) -> int:
     moment = now or datetime.now(UTC)
-    result = session.execute(
-        delete(PendingResolution).where(PendingResolution.expires_at < moment)
-    )
+    result = session.execute(delete(PendingResolution).where(PendingResolution.expires_at < moment))
     return rows_affected(result)

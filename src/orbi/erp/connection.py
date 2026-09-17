@@ -131,9 +131,7 @@ def sync_tenant_tools(
 
 def enabled_tools(session: Session, tenant_id: uuid.UUID) -> frozenset[str]:
     rows = session.scalars(
-        select(TenantTool).where(
-            TenantTool.tenant_id == tenant_id, TenantTool.enabled.is_(True)
-        )
+        select(TenantTool).where(TenantTool.tenant_id == tenant_id, TenantTool.enabled.is_(True))
     ).all()
     return frozenset(row.tool_name for row in rows)
 

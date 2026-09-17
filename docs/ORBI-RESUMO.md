@@ -290,11 +290,11 @@ não cresce com o cliente — é o que faz a margem melhorar com escala. A conta
 bolso e para a LGPD — ou no nosso, quando a verificação da Meta atrasaria a PoC.
 
 ⚠️ **Atenção:** até setembro de 2026 as respostas dentro da janela de 24h são gratuitas. **A
-partir de outubro de 2026 a Meta volta a cobrá-las**, à tarifa de template de utilidade: ≈ R$ 0,053
-por mensagem acima de **1.000 grátis por número/mês** (fonte secundária, 02/09/2026 — não
-confirmado na página oficial em 16/09). Parcela que **não** amortiza: cliente Time no teto ≈ R$ 477
-só de Meta, e a margem dele vai a −2%–29%. Isso dá peso real ao teto de consultas por plano e aos
-canais que não cobram por mensagem (Telegram, Slack).
+partir de outubro de 2026 a Meta volta a cobrá-las**, à tarifa de template de utilidade — a data e a
+paridade estão na página oficial da Meta; o valor (≈ R$ 0,035) e a franquia de **1.000 grátis por
+número/mês** vêm de fontes secundárias concordantes (16/09/2026). Parcela que **não** amortiza:
+cliente Time no teto paga ≈ R$ 315 só de Meta e perde metade da margem. Isso dá peso real ao teto
+de consultas por plano e aos canais que não cobram por mensagem (Telegram, Slack).
 
 | Plano | Usuários | Mensal |
 |---|---|---|
@@ -306,9 +306,9 @@ Cobra-se por usuário, não por consulta — o custo real é suporte, não token
 consultas, para um cliente entusiasmado não dobrar a conta de LLM.
 
 **Margem, hoje:** 1 cliente fundador: negativa a 55% · 1 cliente pagante: 52–82% · 10 clientes:
-91–97%. Com a tarifa da Meta a partir de outubro, no uso esperado: 34–65% (1 Time) e 74–80% (10
-Time); **no teto do plano, perto do zero**. O segundo cliente a preço cheio já deixa a operação no
-azul nos dois cenários — desde que não viva encostado no teto.
+91–97%. Com a tarifa da Meta a partir de outubro, no uso esperado: 40–71% (1 Time) e 80–86% (10
+Time); **no teto do plano, 16–44%**. O segundo cliente a preço cheio já deixa a operação no azul
+nos dois cenários.
 
 **Gatilhos de gasto — nada sobe por antecipação:** VPS maior só se o p95 passar de 6s por CPU ·
 Postgres gerenciado só acima de 50 GB · Redis só se o contexto virar gargalo medido · Console só

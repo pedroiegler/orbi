@@ -59,8 +59,7 @@ class TurnMetrics:
                 "p50_ms": percentil(self.total_latencies, 50),
                 "p95_ms": percentil(self.total_latencies, 95),
                 "stages_p50_ms": {
-                    stage: percentil(values, 50)
-                    for stage, values in self.stage_latencies.items()
+                    stage: percentil(values, 50) for stage, values in self.stage_latencies.items()
                 },
                 "cost_usd": round(self.cost_usd, 6),
             }

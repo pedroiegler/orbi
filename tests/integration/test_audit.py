@@ -85,9 +85,7 @@ def test_the_database_refuses_to_delete_an_audit_row(tenant_id: uuid.UUID) -> No
         write(session, _record(tenant_id))
 
     with pytest.raises(Exception, match="append-only"), admin_session() as session:
-        session.execute(
-            text("DELETE FROM audit_logs WHERE tenant_id = :t"), {"t": str(tenant_id)}
-        )
+        session.execute(text("DELETE FROM audit_logs WHERE tenant_id = :t"), {"t": str(tenant_id)})
 
 
 def test_tampering_is_detected(tenant_id: uuid.UUID) -> None:

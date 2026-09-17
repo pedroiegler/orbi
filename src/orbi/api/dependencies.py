@@ -86,9 +86,7 @@ class TurnDispatcher:
         if channel is None or not outcome.text:
             return
         if outcome.options:
-            channel.send_options(
-                event.from_address, outcome.text, options_from(outcome.options)
-            )
+            channel.send_options(event.from_address, outcome.text, options_from(outcome.options))
             return
         channel.send_text(event.from_address, outcome.text)
 
@@ -106,9 +104,7 @@ class TurnDispatcher:
             if channel is None:
                 return
             try:
-                channel.send_text(
-                    event.from_address, self._renderer.render("slow.txt.j2", {})
-                )
+                channel.send_text(event.from_address, self._renderer.render("slow.txt.j2", {}))
             except Exception as exc:  # nunca derruba o turno
                 logger.warning("falha ao enviar aviso de demora: %s", type(exc).__name__)
 

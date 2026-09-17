@@ -332,7 +332,7 @@ def _clean_term(text: str) -> str:
 
 
 def is_anaphora(term: str) -> bool:
-    """"e o preco dele?" — o Runtime resolve pelo slot, nao o modelo (D-012)."""
+    """ "e o preco dele?" — o Runtime resolve pelo slot, nao o modelo (D-012)."""
     return _normalize(term) in _ANAPHORA
 
 

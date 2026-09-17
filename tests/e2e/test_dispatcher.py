@@ -87,9 +87,7 @@ def test_unsupported_media_gets_the_out_of_scope_answer(harness: Harness) -> Non
 def test_thumbs_down_opens_a_correction_and_alerts(harness: Harness) -> None:
     channel = ConsoleChannel()
     ops = OpsNotifier()
-    dispatcher = TurnDispatcher(
-        harness.runtime, ops, channel_factory=lambda name, address: channel
-    )
+    dispatcher = TurnDispatcher(harness.runtime, ops, channel_factory=lambda name, address: channel)
     dispatcher.dispatch(_event(harness, "quanto tem de cimento?"))
 
     dispatcher.dispatch(_event(harness, "", kind="reaction", reaction="down"))
@@ -140,7 +138,10 @@ def test_reaction_from_an_unknown_number_is_ignored(harness: Harness) -> None:
     channel = ConsoleChannel()
     _dispatcher(harness, channel).dispatch(
         _event(
-            harness, "", kind="reaction", reaction="down",
+            harness,
+            "",
+            kind="reaction",
+            reaction="down",
             from_address=harness.phones["stranger"],
         )
     )

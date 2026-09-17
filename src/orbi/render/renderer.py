@@ -145,9 +145,7 @@ def stock_view(payload: dict[str, Any], default_location_id: str | None = None) 
     view["locations"] = locations
     view["location_mode"] = _location_mode(payload, locations)
     view["shown_locations"] = (
-        locations[:TOP_LOCATIONS_WHEN_MANY]
-        if view["location_mode"] == "top"
-        else locations
+        locations[:TOP_LOCATIONS_WHEN_MANY] if view["location_mode"] == "top" else locations
     )
     view["other_locations"] = max(0, len(locations) - len(view["shown_locations"]))
     view["quantity"] = _total_quantity(payload)

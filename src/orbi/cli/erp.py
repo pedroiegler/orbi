@@ -90,9 +90,7 @@ def capabilities(
         tenant_erp = erp_connection.build_for_tenant(
             session, tenant_id, refresh_capabilities=refresh
         )
-        disabled = erp_connection.sync_tenant_tools(
-            session, tenant_id, tenant_erp.capabilities
-        )
+        disabled = erp_connection.sync_tenant_tools(session, tenant_id, tenant_erp.capabilities)
     _print_capabilities(tenant_erp.capabilities)
     if disabled:
         warn(f"tools desligadas automaticamente: {', '.join(disabled)}")

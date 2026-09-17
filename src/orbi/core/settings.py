@@ -137,9 +137,7 @@ class Settings(BaseSettings):
         if self.llm_fallback is None:
             problems.append("ORBI_LLM_FALLBACK ausente: failover exige dois fabricantes")
         elif _manufacturer(self.llm_primary) == _manufacturer(self.llm_fallback):
-            problems.append(
-                "primario e fallback do mesmo fabricante: a queda seria correlacionada"
-            )
+            problems.append("primario e fallback do mesmo fabricante: a queda seria correlacionada")
         if self.llm_rendering_enabled:
             problems.append("llm_rendering_enabled deve ser falso: a resposta e template")
         if not self.whatsapp_verify_token.get_secret_value():
@@ -149,6 +147,7 @@ class Settings(BaseSettings):
                 "ORBI_WHATSAPP_APP_SECRET ausente: webhook sem verificacao de assinatura"
             )
         return problems
+
 
 def _manufacturer(provider: LLMProviderName) -> str:
     """Fabricante de cada provedor.

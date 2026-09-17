@@ -28,9 +28,7 @@ SlugOption = Annotated[str, typer.Option("--tenant", "-t", help="Slug do cliente
 def add(
     slug: SlugOption,
     name: Annotated[str, typer.Option("--name", help="Razao social ou nome fantasia.")],
-    phone: Annotated[
-        str, typer.Option("--phone", help="Numero do WhatsApp do cliente, com DDI.")
-    ],
+    phone: Annotated[str, typer.Option("--phone", help="Numero do WhatsApp do cliente, com DDI.")],
     phone_number_id: Annotated[
         str, typer.Option("--phone-number-id", help="phone_number_id da Cloud API.")
     ] = "",
@@ -199,14 +197,15 @@ def show(slug: SlugOption) -> None:
     with admin_session() as session:
         tenant = session.get(Tenant, tenant_id)
         settings = session.get(TenantSettings, tenant_id)
-        tools = session.scalars(
-            select(TenantTool).where(TenantTool.tenant_id == tenant_id)
-        ).all()
-        usuarios_ativos = session.scalar(
-            select(func.count())
-            .select_from(User)
-            .where(User.tenant_id == tenant_id, User.active.is_(True))
-        ) or 0
+        tools = session.scalars(select(TenantTool).where(TenantTool.tenant_id == tenant_id)).all()
+        usuarios_ativos = (
+            session.scalar(
+                select(func.count())
+                .select_from(User)
+                .where(User.tenant_id == tenant_id, User.active.is_(True))
+            )
+            or 0
+        )
 
     assert tenant is not None and settings is not None
     view = table(f"Tenant {tenant.slug}", ["campo", "valor"])
@@ -255,11 +254,14 @@ def set_plan(
     with admin_session() as session:
         tenant = session.get(Tenant, tenant_id)
         assert tenant is not None
-        usuarios = session.scalar(
-            select(func.count())
-            .select_from(User)
-            .where(User.tenant_id == tenant_id, User.active.is_(True))
-        ) or 0
+        usuarios = (
+            session.scalar(
+                select(func.count())
+                .select_from(User)
+                .where(User.tenant_id == tenant_id, User.active.is_(True))
+            )
+            or 0
+        )
         if usuarios > plano.max_usuarios:
             fail(
                 f"'{slug}' tem {usuarios} usuarios ativos e o plano {plano.nome} "

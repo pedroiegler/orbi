@@ -91,9 +91,7 @@ class ErpGateway:
     ) -> StockResult:
         return self._call(
             "get_stock",
-            lambda timeout: self._adapter.get_stock(
-                product_id, location_id, timeout_ms=timeout
-            ),
+            lambda timeout: self._adapter.get_stock(product_id, location_id, timeout_ms=timeout),
             deadline,
         )
 

@@ -143,9 +143,7 @@ class OdooAdapter:
                 raise ErpAuthError("Odoo recusou a credencial", adapter=ADAPTER_NAME) from exc
             if exc.errcode == 429:
                 raise ErpRateLimited("Odoo limitou as requisicoes", adapter=ADAPTER_NAME) from exc
-            raise ErpUnavailable(
-                f"Odoo devolveu HTTP {exc.errcode}", adapter=ADAPTER_NAME
-            ) from exc
+            raise ErpUnavailable(f"Odoo devolveu HTTP {exc.errcode}", adapter=ADAPTER_NAME) from exc
         except xmlrpc.client.Fault as exc:
             message = str(exc.faultString)
             if any(marker in message for marker in _AUTH_MARKERS):
@@ -169,13 +167,9 @@ class OdooAdapter:
         self._server_version = str(version.get("server_version", "desconhecida"))
 
         has_quants = bool(
-            self._execute(
-                "ir.model", "search_count", [[["model", "=", "stock.quant"]]]
-            )
+            self._execute("ir.model", "search_count", [[["model", "=", "stock.quant"]]])
         )
-        has_sale = bool(
-            self._execute("ir.model", "search_count", [[["model", "=", "sale.order"]]])
-        )
+        has_sale = bool(self._execute("ir.model", "search_count", [[["model", "=", "sale.order"]]]))
         has_account = bool(
             self._execute("ir.model", "search_count", [[["model", "=", "account.move"]]])
         )

@@ -42,8 +42,12 @@ def _audit(tenant: uuid.UUID, question: str, tool: str, args: dict[str, str]) ->
 
 
 def test_shadow_samples_real_questions_anonymized(tenant_id: uuid.UUID) -> None:
-    _audit(tenant_id, "quanto tem de cimento? meu cpf e 123.456.789-00", "check_stock",
-           {"product_term": "cimento"})
+    _audit(
+        tenant_id,
+        "quanto tem de cimento? meu cpf e 123.456.789-00",
+        "check_stock",
+        {"product_term": "cimento"},
+    )
     for _ in range(9):
         _audit(tenant_id, "quanto tem de argamassa?", "check_stock", {"product_term": "argamassa"})
 
@@ -85,9 +89,7 @@ def test_shadow_never_touches_the_erp(tenant_id: uuid.UUID) -> None:
     """Reexecutar a consulta gastaria rate limit do cliente sem responder nada."""
     from orbi.evals import shadow
 
-    source = (
-        __import__("pathlib").Path(shadow.__file__).read_text(encoding="utf-8")
-    )
+    source = __import__("pathlib").Path(shadow.__file__).read_text(encoding="utf-8")
     assert "gateway" not in source
     assert "ErpGateway" not in source
 
@@ -200,9 +202,7 @@ def test_shadow_tolerates_legacy_rows_without_structured_arguments(
         _audit(tenant_id, "quanto tem de cimento?", "check_stock", {"product_term": "cimento"})
 
     with admin_session() as session:
-        session.execute(
-            sql("ALTER TABLE audit_logs DISABLE TRIGGER audit_logs_append_only")
-        )
+        session.execute(sql("ALTER TABLE audit_logs DISABLE TRIGGER audit_logs_append_only"))
         session.execute(
             sql(
                 "UPDATE audit_logs SET tool_args = to_jsonb('product_term=cimento'::text) "

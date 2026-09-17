@@ -52,9 +52,7 @@ def test_price_question_for_finance_shows_cost(harness: Harness) -> None:
 
 
 def test_invoices_answer_for_finance(harness: Harness) -> None:
-    outcome = harness.ask(
-        "a construtora silva tem titulos em aberto?", sender=FINANCE
-    )
+    outcome = harness.ask("a construtora silva tem titulos em aberto?", sender=FINANCE)
     assert outcome.status == "ok"
     assert outcome.tool_name == "list_open_invoices"
     assert "NF 12345" in outcome.text
@@ -146,7 +144,7 @@ def test_unknown_product_asks_for_the_code(harness: Harness) -> None:
 
 
 def test_follow_up_question_uses_the_remembered_slot(harness: Harness) -> None:
-    """"e o preco dele?" resolve pelo slot, nao por chute do modelo (D-012)."""
+    """ "e o preco dele?" resolve pelo slot, nao por chute do modelo (D-012)."""
     first = harness.ask("quanto tem de cimento?")
     assert first.status == "ok"
 
@@ -367,8 +365,18 @@ def test_o_codigo_de_um_cliente_nao_encontra_turno_de_outro(harness: Harness) ->
     outro = f"vizinho{uuid.uuid4().hex[:8]}"
     criado = CliRunner().invoke(
         app,
-        ["tenant", "add", "--tenant", outro, "--name", "Vizinho",
-         "--phone", f"+5543{uuid.uuid4().int % 10**9:09d}", "--plan", "essencial"],
+        [
+            "tenant",
+            "add",
+            "--tenant",
+            outro,
+            "--name",
+            "Vizinho",
+            "--phone",
+            f"+5543{uuid.uuid4().int % 10**9:09d}",
+            "--plan",
+            "essencial",
+        ],
     )
     assert criado.exit_code == 0, criado.output
 

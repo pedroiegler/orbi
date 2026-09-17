@@ -180,9 +180,7 @@ def onboard(
             tenant_erp.adapter.check_connection()
         except ErpError as exc:
             fail(f"ERP recusou a conexao: {exc}")
-        disabled = erp_connection.sync_tenant_tools(
-            session, tenant_id, tenant_erp.capabilities
-        )
+        disabled = erp_connection.sync_tenant_tools(session, tenant_id, tenant_erp.capabilities)
     steps.append(("credenciais", f"ok — {tenant_erp.adapter_name}"))
     steps.append(
         (
@@ -237,9 +235,7 @@ def onboard(
 @app.command("evals")
 def evals(
     layer: Annotated[str, typer.Option("--layer", help="L1..L5 ou 'all'.")] = "all",
-    tenant: Annotated[
-        str, typer.Option("--tenant", "-t", help="Necessario para L3 e L4.")
-    ] = "",
+    tenant: Annotated[str, typer.Option("--tenant", "-t", help="Necessario para L3 e L4.")] = "",
     record: Annotated[
         bool, typer.Option("--record/--no-record", help="Grava em eval_runs.")
     ] = True,
@@ -272,9 +268,7 @@ def evals(
 
 @app.command("bench")
 def bench(
-    provider: Annotated[
-        str, typer.Option("--provider", help="Vazio usa o primario do .env.")
-    ] = "",
+    provider: Annotated[str, typer.Option("--provider", help="Vazio usa o primario do .env.")] = "",
     model: Annotated[str, typer.Option("--model", help="Vazio usa o do .env.")] = "",
     limite: Annotated[
         int, typer.Option("--limite", help="Casos a rodar. Camada gratuita tem cota.")

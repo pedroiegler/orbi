@@ -17,9 +17,7 @@ class DeadlineExceeded(Exception):
     """O orcamento do turno acabou antes de o estagio comecar."""
 
     def __init__(self, stage: str, elapsed_ms: int, total_ms: int) -> None:
-        super().__init__(
-            f"orcamento esgotado antes de '{stage}': {elapsed_ms}ms de {total_ms}ms"
-        )
+        super().__init__(f"orcamento esgotado antes de '{stage}': {elapsed_ms}ms de {total_ms}ms")
         self.stage = stage
         self.elapsed_ms = elapsed_ms
         self.total_ms = total_ms

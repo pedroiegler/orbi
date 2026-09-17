@@ -33,8 +33,7 @@ def list_corrections(
     rows: list[tuple[str, Correction]] = []
     with admin_session() as session:
         tenants = {
-            tenant_row.id: tenant_row.slug
-            for tenant_row in session.scalars(select(Tenant)).all()
+            tenant_row.id: tenant_row.slug for tenant_row in session.scalars(select(Tenant)).all()
         }
         query = select(Correction).where(Correction.status == status)
         if tenant:

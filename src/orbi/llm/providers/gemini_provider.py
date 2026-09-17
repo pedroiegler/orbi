@@ -44,7 +44,6 @@ PROVIDER_NAME = "gemini"
 DEFAULT_MODEL = "gemini-3.7-flash"
 
 
-
 class GeminiProvider:
     """Implementa o `LLMPort` sobre o SDK oficial `google-genai`."""
 
@@ -115,18 +114,14 @@ class GeminiProvider:
                 if self._thinking_budget >= 0
                 else None
             ),
-            http_options=types.HttpOptions(
-                timeout=max(request.timeout_ms, MIN_API_DEADLINE_MS)
-            ),
+            http_options=types.HttpOptions(timeout=max(request.timeout_ms, MIN_API_DEADLINE_MS)),
         )
 
         contents = [_as_content(message) for message in request.messages]
         try:
             response = self._call_within_budget(client, contents, config, request.timeout_ms)
         except FutureTimeout as exc:
-            raise LLMTimeout(
-                f"gemini nao respondeu em {request.timeout_ms} ms"
-            ) from exc
+            raise LLMTimeout(f"gemini nao respondeu em {request.timeout_ms} ms") from exc
         except Exception as exc:
             raise _translate(exc) from exc
 
@@ -220,8 +215,6 @@ def _finish_reason(response: Any) -> str | None:
         return None
     reason = getattr(candidates[0], "finish_reason", None)
     return str(getattr(reason, "value", reason)) if reason is not None else None
-
-
 
 
 def _translate(exc: Exception) -> Exception:

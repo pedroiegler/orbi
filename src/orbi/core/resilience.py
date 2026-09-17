@@ -126,9 +126,7 @@ class CircuitBreaker:
 
     def _transition(self, key: str) -> _BreakerEntry:
         entry = self._entries.setdefault(key, _BreakerEntry())
-        if entry.state == "open" and (
-            self._clock() - entry.opened_at >= self._config.open_seconds
-        ):
+        if entry.state == "open" and (self._clock() - entry.opened_at >= self._config.open_seconds):
             entry.state = "half_open"
             entry.probe_in_flight = False
         return entry

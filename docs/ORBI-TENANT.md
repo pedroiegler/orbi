@@ -98,10 +98,10 @@ O teto do plano muda com `orbi tenant set-plan`, nunca editando a coluna à mão
 senão o plano vendido e o teto aplicado se separam.
 
 ⚠️ **A partir de outubro de 2026 a Meta volta a cobrar as respostas dentro da
-janela de 24 horas** — ≈ R$ 0,053 por mensagem acima de 1.000/mês por número,
-segundo fonte secundária ainda não confirmada na página oficial (16/09/2026).
-Um cliente Time encostado no teto fica perto do zero a zero: o teto deixa de ser
-só proteção contra abuso e passa a ser controle de margem. Conta completa em
+janela de 24 horas** (confirmado na página oficial): ≈ R$ 0,035 por mensagem, com
+1.000 grátis por número/mês segundo fontes secundárias. Um cliente Time encostado
+no teto perde metade da margem: o teto deixa de ser só proteção contra abuso e
+passa a ser controle de margem. Conta e níveis de confirmação em
 [ORBI-COMERCIAL.md](ORBI-COMERCIAL.md).
 
 ---

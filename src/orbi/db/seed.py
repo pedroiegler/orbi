@@ -114,8 +114,6 @@ def sync_global_config(session: Session) -> SeedReport:
 
     unknown: set[str] = set(CAPABILITY_LABELS) - set(ALL_CAPABILITIES)
     if unknown:
-        raise RuntimeError(
-            f"capabilities documentadas sem declaracao no registry: {unknown}"
-        )
+        raise RuntimeError(f"capabilities documentadas sem declaracao no registry: {unknown}")
 
     return report

@@ -236,11 +236,7 @@ class CatalogSynchronizer:
             if verdict.flagged:
                 report.flagged += 1
 
-        missing = [
-            row
-            for key, row in existing.items()
-            if key not in seen_keys and row.active
-        ]
+        missing = [row for key, row in existing.items() if key not in seen_keys and row.active]
         if deactivate_missing and mode == "full":
             changed += len(missing)
 

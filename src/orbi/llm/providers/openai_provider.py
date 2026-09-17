@@ -20,7 +20,6 @@ PROVIDER_NAME = "openai"
 DEFAULT_MODEL = "gpt-4.1"
 
 
-
 class OpenAIProvider:
     """Implementa o `LLMPort` sobre a Chat Completions API."""
 
@@ -133,8 +132,6 @@ def _to_envelope(response: Any, provider: str, model: str, latency_ms: int) -> T
         cost_usd=custo_usd(model, tokens_in, tokens_out),
         latency_ms=latency_ms,
     )
-
-
 
 
 def _translate(exc: Exception) -> Exception:

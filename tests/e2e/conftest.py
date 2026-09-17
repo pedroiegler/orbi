@@ -91,9 +91,7 @@ def harness(database: None) -> Iterator[Harness]:
                     user_id=user.id,
                     channel="whatsapp",
                     address=phone,
-                    verified_at=__import__("datetime").datetime.now(
-                        __import__("datetime").UTC
-                    ),
+                    verified_at=__import__("datetime").datetime.now(__import__("datetime").UTC),
                     active=True,
                 )
             )
@@ -110,9 +108,7 @@ def harness(database: None) -> Iterator[Harness]:
 
     embedder = HashingEmbedder()
     with tenant_session(tenant_id) as session:
-        CatalogSynchronizer(session, tenant_id, embedder).run(
-            list(MemoryAdapter().iter_catalog())
-        )
+        CatalogSynchronizer(session, tenant_id, embedder).run(list(MemoryAdapter().iter_catalog()))
 
     alerts: list[tuple[str, str]] = []
     runtime = OrbiRuntime(

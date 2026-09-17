@@ -112,9 +112,7 @@ class MemoryAdapter:
             if not location_id or str(entry["location_id"]) == str(location_id)
         ]
 
-        physical = sum(
-            (Decimal(str(entry["physical"])) for entry in raw_locations), Decimal("0")
-        )
+        physical = sum((Decimal(str(entry["physical"])) for entry in raw_locations), Decimal("0"))
         reserved = sum(
             (Decimal(str(entry.get("reserved", 0))) for entry in raw_locations), Decimal("0")
         )
