@@ -37,6 +37,11 @@ observability = [
     "langfuse>=4.0",
 ]
 dev = [
+    # A suite testa o provedor Gemini e o tracer do Langfuse; sem os SDKs, onze
+    # testes caem com "No module named google". O CI ficou vermelho 29 runs
+    # seguidos por isso (D-046). `pip install -e ".[dev]"` tem que bastar para
+    # `pytest` passar — para o CI e para quem chega ao projeto.
+    "orbi[llm,observability]",
     "pytest>=8.3",
     "pytest-cov>=6.0",
     "pytest-asyncio>=0.25",

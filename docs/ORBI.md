@@ -847,7 +847,7 @@ usuário reclama citando o código e a investigação já começa pronta.
 | L4 | end-to-end com ERP mockado e fixtures golden |
 | L5 | adversarial: injeção, escalada de privilégio, fora de escopo |
 
-Roda no CI e bloqueia merge em caso de regressão. Cada execução grava `prompt_version`, modelo e
+Roda no CI a cada merge para `main` e em PR para `main`; em PR, regressão bloqueia o merge (D-046). Cada execução grava `prompt_version`, modelo e
 scores, formando uma tabela de regressão histórica.
 
 **Shadow evals:** 5% das perguntas reais, anonimizadas, são reexecutadas à noite contra a versão
