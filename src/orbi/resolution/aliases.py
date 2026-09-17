@@ -4,8 +4,13 @@
 daquele cliente — e esse acumulo e a defesa competitiva mais duravel do produto.
 
 O alias **nao** nasce confirmado: entra com `confidence=low` e so e promovido
-apos dois usos bem-sucedidos sem correcao (D-013). Isso evita que um toque
-errado envenene a resolucao daquele tenant para sempre.
+apos dois usos bem-sucedidos sem correcao (D-013).
+
+A confianca so protege alguma coisa porque a **cascata a le**: um alias `low`
+que discorda do catalogo vira pergunta, nao resposta (veja
+`EntityResolver._conciliar`). Escrever a coluna sem ninguem consultar deixaria a
+promessa em pe no papel e derrubada no codigo — que foi exatamente o estado
+anterior.
 """
 
 from __future__ import annotations

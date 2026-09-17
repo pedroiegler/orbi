@@ -21,8 +21,12 @@ O que acontece: cria o tenant, cria `tenant_settings` com os limiares padrão
 
 **Um número por tenant.** A identificação fica determinística e o risco de
 banimento fica isolado: um cliente com problema não derruba os outros.
-**O número é do cliente**, não do Orbi — custo zero para a operação e melhor
-posição na LGPD.
+
+**De quem é o número, o cliente escolhe** (D-043). No Business Portfolio dele —
+o padrão, com custo zero para a operação, melhor posição na LGPD e saída limpa —
+ou no nosso, quando ele ainda não tem portfólio verificado e a espera mataria a
+PoC. O código é indiferente: guarda endereço, `phone_number_id` e token cifrado.
+O roteiro das duas está em [ORBI-IMPLANTACAO.md](ORBI-IMPLANTACAO.md).
 
 ## Token do canal
 
@@ -63,6 +67,9 @@ orbi tenant debug --tenant construtora-silva --off
 Acrescenta o código curto do trace no rodapé da resposta. Ligue na primeira
 semana; desligue depois.
 
+O caminho de volta é `orbi trace show <código> --tenant <slug>` — sem ele o
+código sairia na resposta e não levaria a lugar nenhum.
+
 ---
 
 ## Planos e teto de consultas
@@ -78,8 +85,17 @@ usuários, e o cadastro do sexto usuário num plano de cinco é recusado. A ofer
 completa está em [ORBI-COMERCIAL.md](ORBI-COMERCIAL.md).
 
 Cobra-se por usuário, não por consulta — o custo variável real é suporte, não
-token. O teto existe para conter abuso: um cliente entusiasmado sozinho dobra a
-conta de LLM. Ele fica em `tenant_settings.rate_limit_per_day`.
+token.
+
+São **dois limites diferentes**, e confundi-los faz mexer na coluna errada:
+
+| | Onde fica | Padrão | Do que protege |
+|---|---|---|---|
+| Teto do plano, por mês | `tenants.monthly_query_cap` | do plano (3.000 a 20.000) | o contrato: é o número que o cliente comprou |
+| Rate limit, por dia e por minuto | `tenant_settings.rate_limit_per_day` / `_per_minute` | 300 / 12 | rajada e laço: um número em loop não queima o mês inteiro numa tarde |
+
+O teto do plano muda com `orbi tenant set-plan`, nunca editando a coluna à mão —
+senão o plano vendido e o teto aplicado se separam.
 
 ⚠️ **A partir de outubro de 2026 a Meta volta a cobrar as respostas dentro da
 janela de 24 horas.** Quando a tabela do Brasil sair, o custo por cliente precisa

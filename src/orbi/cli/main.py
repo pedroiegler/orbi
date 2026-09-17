@@ -16,7 +16,9 @@ from orbi.cli import catalog as catalog_commands
 from orbi.cli import corrections as corrections_commands
 from orbi.cli import erp as erp_commands
 from orbi.cli import maintenance as maintenance_commands
+from orbi.cli import role as role_commands
 from orbi.cli import tenant as tenant_commands
+from orbi.cli import trace as trace_commands
 from orbi.cli import user as user_commands
 from orbi.cli.common import console, fail, ok, resolve_tenant_id, table, warn
 from orbi.core.crypto import CredentialCipher
@@ -32,10 +34,12 @@ app = typer.Typer(
 )
 app.add_typer(tenant_commands.app, name="tenant")
 app.add_typer(user_commands.app, name="user")
+app.add_typer(role_commands.app, name="role")
 app.add_typer(erp_commands.app, name="erp")
 app.add_typer(catalog_commands.app, name="catalog")
 app.add_typer(corrections_commands.app, name="corrections")
 app.add_typer(maintenance_commands.app, name="maintenance")
+app.add_typer(trace_commands.app, name="trace")
 
 
 @app.command("doctor")
@@ -60,6 +64,13 @@ def doctor() -> None:
         "LLM",
         f"{settings.llm_primary} → {settings.llm_fallback or 'sem fallback'}",
     )
+    from orbi.llm.pricing import modelos_sem_preco, problemas_de_producao
+
+    sem_preco = modelos_sem_preco(settings)
+    view.add_row(
+        "tabela de precos",
+        "cobre os modelos em uso" if not sem_preco else "INCOMPLETA — custo sairia zero",
+    )
     view.add_row("embeddings", settings.embedding_provider)
     view.add_row(
         "rendering",
@@ -67,7 +78,7 @@ def doctor() -> None:
     )
     console.print(view)
 
-    problems = settings.validate_for_production()
+    problems = problemas_de_producao(settings)
     if settings.is_production and problems:
         for problem in problems:
             warn(problem)

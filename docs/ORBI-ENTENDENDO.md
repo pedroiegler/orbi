@@ -92,8 +92,9 @@ cadastrado", um atacante poderia testar milhares de números e descobrir quais s
 de vendedores da empresa. Chama-se **enumeração de usuários**, e a defesa é
 exatamente essa: a mesma resposta para todo mundo.
 
-Da quarta tentativa em diante, o Orbi para de responder — nem a mensagem genérica.
-Varredura não vira custo.
+Da **quarta** tentativa dentro de **10 minutos** em diante, o Orbi para de
+responder — nem a mensagem genérica (`UNKNOWN_SENDER_LIMIT = 3`). Varredura não
+vira custo, e o silêncio também não confirma nada.
 
 *No código:* [identity/resolver.py](../src/orbi/identity/resolver.py)
 
@@ -337,9 +338,14 @@ O ERP devolveu tudo o que sabe sobre aquele produto — inclusive o custo. A **F
 Policy** decide quais campos aquele papel pode ver, por lista branca:
 
 ```python
-("sales_rep", "check_price") → preço, quantidade, total, cliente, desconto
-("finance",   "check_price") → tudo isso + unit_cost + margin_percent
+check_price                     → preço, quantidade, total, cliente, desconto
+check_price + "price:read_cost" → tudo isso + unit_cost + margin_percent
 ```
+
+A lista branca é indexada por **permissão**, nunca por nome de papel. Tanto faz se
+o papel se chama `finance`, `gerente_comercial` ou `diretoria`: quem libera custo
+é `price:read_cost`. É isso que deixa cada cliente ter os próprios papéis sem que
+ninguém mexa nesta camada (D-040).
 
 O que sobra é jogado fora **antes** de chegar ao template, em qualquer
 profundidade — inclusive dentro de linhas de pedido. Compare as duas respostas
@@ -625,6 +631,56 @@ A terceira é comercial, não técnica: cobra-se por usuário, não por consulta
 um cliente entusiasmado sozinho dobra a conta de LLM.
 
 Número desconhecido tem janela própria e agressiva: 3 tentativas em 10 minutos.
+
+---
+
+# Parte 2.5 — O Orbi está preso a ERP? (D-045)
+
+Não. E dá para medir, em vez de opinar.
+
+```
+preso ao domínio   ~1.750 linhas   tools, DTOs, adapter Odoo,
+                                   lista de campos, templates, evals
+reaproveitado      ~6.700 linhas   canal, identidade, policy, papéis,
+   inteiro                         resolução, auditoria, LLM, deadline,
+                                   RLS, rate limit, observabilidade
+                   ─────────────
+total               14.579
+```
+
+**Cerca de 12% do código é do domínio.** E as menções a ERP no núcleo são
+**nome**, não acoplamento:
+
+```python
+erp_entity_id      # = "id no sistema de origem"
+erp_supported_tools # = "tools que o sistema de origem atende"
+erp_payload_hash   # = "hash do que o sistema devolveu"
+```
+
+Nenhum módulo central ramifica em semântica de ERP — o teste de arquitetura
+`test_no_module_branches_on_the_erp_name` garante isso. Renomear `erp_*` para
+algo neutro custaria uma tarde.
+
+Ou seja: o Orbi **já não é um produto de ERP**. É uma camada de linguagem natural
+sobre um sistema de registro, com permissão por papel e resposta por template —
+que por acaso foi instanciada primeiro em ERP.
+
+## Mas isso não quer dizer que mudar de ramo seja barato
+
+O código é a parte barata. Num ramo novo você reaproveita a arquitetura inteira e
+começa do zero no que realmente custa: **saber quais são as quatro perguntas
+certas**, o adapter de referência com Conformance Kit, os evals, o vocabulário
+acumulado e um cliente que dê credibilidade. São 12% do código e praticamente
+100% do conhecimento de mercado.
+
+Por isso a decisão é ir fundo em **distribuidor e atacado** até o terceiro
+cliente pagante, e só então expandir para **rastreamento** — que não é mercado
+novo, é o mesmo cliente comprando a segunda coisa. Empréstimo e seguros foram
+avaliados e recusados, com o motivo escrito. O filtro completo — seis condições
+que um ramo precisa cumprir — está em [ORBI-COMERCIAL.md](ORBI-COMERCIAL.md).
+
+A opcionalidade já está guardada na arquitetura. O erro seria gastá-la antes do
+primeiro cliente.
 
 ---
 
@@ -989,12 +1045,23 @@ E colocar no cron: backup diário, restore test mensal.
 
 | Integração | Para quê | Estado | Custo |
 |---|---|---|---|
-| **Google Gemini** | escolher a tool (primário) | implementado, falta sua chave | grátis na camada do AI Studio |
-| **Anthropic Claude** | failover (outro fabricante) | implementado, sem chave | pago |
-| **OpenAI** | failover alternativo + embeddings de produção | implementado, sem chave | pago |
-| **WhatsApp Cloud API (Meta)** | canal com o usuário | implementado, falta número real | grátis até out/2026 no fluxo do Orbi |
-| **Odoo (XML-RPC)** | ERP de referência | **rodando e validado** | grátis (Community) |
-| **Langfuse** | tracing dos turnos | implementado, sem chave | camada gratuita generosa |
+| Integração | Estado hoje | Custo |
+|---|---|---|
+| **Google Gemini** — escolher a tool (primário) | **medido contra a API real**: turno completo em 1,2 s, acerto de tool 90%, 20 requisições/dia na camada gratuita | grátis na camada do AI Studio |
+| **OpenAI** — failover + embeddings de produção | implementado, **sem chave: a latência e o acerto neste produto são desconhecidos** | pago |
+| **Anthropic Claude** — failover (outro fabricante) | implementado, **sem chave**, idem | pago |
+| **WhatsApp Cloud API (Meta)** | implementado e testado com payload real da Meta; **falta um número de verdade** | grátis até out/2026 no fluxo do Orbi |
+| **Odoo (XML-RPC)** — ERP de referência | **rodando e validado** contra Odoo 18 real, via API oficial | grátis (Community) |
+| **Langfuse** — tracing dos turnos | implementado, sem chave | camada gratuita generosa |
+
+⚠️ **A consequência de duas linhas "sem chave":** o failover nunca foi exercitado
+contra API real. Existe um job de CI que o avalia quando os segredos existirem
+([ORBI-OBSERVABILIDADE.md](ORBI-OBSERVABILIDADE.md)) — configure antes do primeiro
+cliente pagante, porque failover não avaliado degrada exatamente no dia do
+incidente.
+
+Cada cliente pode ter a **própria chave** de LLM em vez da global (D-041):
+`orbi tenant set-llm`.
 
 ## Internas (peças de infraestrutura)
 
@@ -1116,6 +1183,45 @@ pytest tests/integration/test_rls.py -v
 # 5. Alguém consegue escalar privilégio ou extrair custo?
 pytest tests/evals -k adversarial -v
 ```
+
+## O comando que o suporte usa todo dia (D-042)
+
+Com `orbi tenant debug --on`, a resposta ganha um código curto no rodapé:
+
+```
+CIM CP-II 50KG (CIMCP2) — 575 Units disponíveis
+
+_ref T6XLNJ_
+```
+
+O cliente reclama citando o código, e ele encontra o turno inteiro:
+
+```bash
+orbi trace show T6XLNJ --tenant silva
+```
+
+```
+ quando                  02/09/2026 22:29:46
+ quem                    Carlos (vendedor) (sales_rep)
+ perguntou               quanto tem de cimento?
+ status                  ok
+ tool                    check_stock
+ argumentos              product_term=cimento
+ entidade usada          code=CIMCP2, erp_entity_id=52,
+                         name=CIM CP-II 50KG, stage=trigram
+ policy                  ALLOW
+ latencia                76 ms  (erp 76ms · llm 0ms)
+ hash do payload do ERP  58b7d86afd9cd355...
+```
+
+A linha que mais serve é **`entidade usada`**. O `stage=trigram` diz que o
+produto foi encontrado por semelhança de texto — não por código exato nem por
+apelido aprendido. Se veio o produto errado, você não adivinha: sabe em qual
+etapa da cascata a resolução decidiu, e corrige criando um apelido em vez de
+mexer no modelo.
+
+A busca corre dentro da sessão do cliente, então a RLS vale aqui também — o
+código de um cliente não encontra turno de outro.
 
 E três perguntas que o código responde melhor que qualquer documento:
 
@@ -1393,12 +1499,46 @@ coisas mudam: o custo por cliente precisa ser recalculado, o teto de consultas
 por plano deixa de ser só proteção contra abuso e vira controle de margem, e os
 canais que não cobram por mensagem (Telegram, Slack) ganham peso.
 
+## De quem é o número: as duas opções (D-043)
+
+O cliente escolhe, e as duas são oferecidas de verdade — porque clientes chegam
+em estados diferentes, e recusar uma delas perde cliente por um motivo que não é
+de produto.
+
+| | **Número dele** | **Número nosso** |
+|---|---|---|
+| Como | ele verifica o CNPJ no Business Portfolio e libera nosso acesso | criamos e operamos |
+| Prazo | horas, **se** o portfólio já estiver verificado | imediato |
+| Se não estiver verificado | dias a semanas, com documento | — |
+| Na saída dele | leva o número e a conversa | precisa migrar |
+| Risco de portfólio | dele | **nosso** |
+
+**No código não muda nada.** O Orbi guarda o endereço, o `phone_number_id` e o
+token cifrado; onde a WABA mora é assunto da Meta. Por isso esta é decisão
+comercial e operacional, não técnica — e por isso as duas cabem sem bifurcação.
+
+O risco que o cliente não vê, e que é seu administrar: **portfólio desabilitado
+por violação de integridade trava todas as WABAs dentro dele.** Dez clientes num
+portfólio significa que a violação de um derruba os dez. Por isso cada cliente
+hospedado fica em portfólio separado.
+
+⚠️ E isso tem teto: a Meta limita quantos portfólios uma pessoa cria. As fontes
+públicas divergem entre 2 e 5, e não foi possível confirmar na documentação
+oficial. **Confirme o seu limite antes de vender a opção hospedada para o
+terceiro cliente** — quando o teto chegar, hospedar deixa de ser exceção
+operacional e vira decisão de preço.
+
 ---
 
-# Parte 13 — Os três papéis: quem vê o quê
+# Parte 13 — Papéis: quem vê o quê
 
-`sales_rep`, `finance` e `admin` são os **códigos internos** dos três papéis. Eles
-aparecem na CLI e no banco; o cliente nunca os vê — ele vê "Vendedor",
+Todo cliente **começa** com três papéis, que servem para a maioria. Mas eles são
+o ponto de partida, não a lista fechada: cada cliente define os próprios papéis,
+com os próprios nomes e as próprias permissões, sem deploy (D-040). A seção
+"Papéis sob medida", no fim desta parte, mostra como.
+
+`sales_rep`, `finance` e `admin` são os **códigos internos** dos três padrões.
+Eles aparecem na CLI e no banco; o cliente nunca os vê — ele vê "Vendedor",
 "Financeiro" e "Administrador".
 
 | Código | Nome para o cliente | Quem é | O que consulta | O que **não** vê |
@@ -1426,10 +1566,31 @@ Pela mesma lógica invertida: quem cobra não precisa de saldo de depósito. Men
 acesso, menos superfície de erro — e menos conversa quando alguém pergunta "por
 que o financeiro consultou o estoque?".
 
-Se um cliente quiser um arranjo diferente ("meu gerente vê tudo menos custo"),
-isso é **uma linha de configuração**, não um desenvolvimento: os papéis são
-apenas presets sobre permissões menores (`stock:read`, `price:read`,
-`price:read_cost`, `invoice:read`, `customer:read`).
+## Papéis sob medida
+
+Os dois parágrafos acima descrevem o **padrão**, não uma regra. Há distribuidor
+onde o vendedor negocia margem e precisa ver custo; há onde o financeiro precisa
+de estoque para saber se vale insistir numa cobrança. Isso é decisão do cliente.
+
+Um papel é apenas um nome dado a um conjunto de permissões menores: `stock:read`,
+`price:read`, `price:read_cost`, `invoice:read`, `customer:read`. Compor as suas:
+
+```bash
+orbi role capabilities                    # o que existe para combinar
+orbi role set --tenant construtora-silva --role gerente \
+  --name "Gerente Comercial" --caps "stock:read,price:read,price:read_cost"
+orbi role show --tenant construtora-silva --role gerente
+orbi role reset --tenant construtora-silva --role gerente   # volta ao padrão
+```
+
+Três comportamentos que valem saber antes de mexer:
+
+- **a lista substitui, não soma** — não há herança do padrão, porque herança
+  silenciosa é como uma permissão sobrevive a uma remoção;
+- **papel vazio, ou papel que ninguém criou, não consulta nada** — falha fechada:
+  um código de papel inválido não concede acesso, ele tira todo o acesso;
+- **papel próprio de um cliente não existe para outro** — o nome do papel sozinho
+  já contaria como a operação do vizinho é organizada.
 
 ## Como trocar o papel de alguém
 
@@ -1458,8 +1619,49 @@ Ficam no `.env` do seu servidor. Valem para todos os clientes.
 | `ORBI_SECRET_KEY` | o cofre que cifra as credenciais dos clientes | quem tiver ela **e** um dump do banco abre o ERP de todos |
 | `ORBI_WHATSAPP_APP_SECRET` | prova que o webhook veio mesmo da Meta | alguém pode forjar mensagens no seu webhook |
 | `ORBI_WHATSAPP_VERIFY_TOKEN` | senha do handshake do webhook | pouco impacto sozinho |
-| `GEMINI_API_KEY` | sua conta de LLM | alguém gasta sua cota |
+| `GEMINI_API_KEY` / `OPENAI_API_KEY` | sua conta de LLM, usada por quem não tem a própria | alguém gasta sua cota |
 | `ORBI_OPS_ACCESS_TOKEN` | seu canal de alertas | alguém manda mensagem no seu número interno |
+
+### A chave de LLM tem os dois modos (D-041)
+
+Ela começa na primeira tabela — uma sua, para todos. Mas um cliente pode ganhar
+a **própria**, e aí ela passa para a segunda categoria:
+
+```bash
+orbi tenant set-llm --tenant construtora-silva \
+  --provider openai --api-key "sk-proj-..." --model gpt-5-mini
+```
+
+Vale quando o cliente tem projeto próprio no provedor. O que ele compra com isso
+**não é monitoramento** — a auditoria do Orbi já grava provedor, modelo, tokens,
+custo e latência de cada turno, com resolução maior que qualquer painel de
+provedor. O que ele compra é:
+
+- **teto de gasto que corta só ele** — na OpenAI e na Anthropic o corte é nativo
+  e duro; no Gemini a cota é por projeto do Google Cloud, e isolar exigiria um
+  projeto por cliente, o que não compensa;
+- **cota que não é dividida** com os outros clientes;
+- **raio de vazamento de um cliente**, não de todos.
+
+A chave é cifrada com a mesma `ORBI_SECRET_KEY`, e a CLI nunca imprime ela
+inteira — chave num terminal vai para o histórico do shell e para o scrollback:
+
+```
+chave de LLM   │ openai · gpt-5-mini · chave ...9f2a
+```
+
+**Se a chave do cliente falhar** (teto estourado, revogada), o turno cai para a
+sua e é atendido — um vendedor não pode ficar sem resposta no meio do expediente.
+Mas emite alerta, e a auditoria grava qual provedor de fato atendeu. A
+consequência precisa estar clara: naquele turno o gasto volta a ser seu. O teto
+do provedor é um corte no gasto *daquele cliente*, não um corte absoluto.
+
+Isso obrigou uma exceção nomeada à regra dos dois fabricantes: normalmente
+primário e fallback precisam ser de empresas diferentes, porque dois provedores
+da mesma empresa caem juntos. Aqui os dois lados são **contas diferentes do mesmo
+fabricante** — e teto de gasto e revogação são eventos de conta, não de
+fabricante. Ali o fallback é real, e marcar isso (`contas_distintas`) é uma
+decisão visível no código, justamente para que ninguém a marque à toa.
 
 ### `ORBI_SECRET_KEY` — uma para todos, e é assim que tem que ser
 
@@ -1651,10 +1853,17 @@ redação por IA reabre a porta da injeção de prompt.
 
 ## O flag existe, mas fica desligado
 
-`ORBI_LLM_RENDERING_ENABLED=false` é o interruptor que ligaria a redação por IA.
-Ele existe para o dia em que algum resultado for complexo demais para template
-(um comparativo entre períodos, por exemplo). Até lá fica falso, e o
-`orbi doctor` reclama se alguém ligar em produção.
+`ORBI_LLM_RENDERING_ENABLED=false` é a reserva de lugar para o dia em que algum
+resultado for complexo demais para template — um comparativo entre períodos, por
+exemplo.
+
+**E ele é mais forte do que "um interruptor desligado".** Nenhuma linha do
+Runtime lê essa configuração: **não existe caminho de código que faça o LLM
+redigir.** A flag existe apenas para ser recusada — `orbi doctor` reclama e
+produção **se recusa a subir** se alguém a ligar. Ligá-la não habilitaria nada;
+apenas impediria o sistema de iniciar.
+
+Interruptor desligado alguém religa sem pensar. Código que não existe, não.
 
 O preço de manter assim: as respostas são mais secas. "CIM CP-II 50KG — 575 un
 disponíveis" em vez de "Olá! Você tem 575 sacos disponíveis, posso ajudar em algo

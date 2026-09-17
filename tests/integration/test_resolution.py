@@ -320,3 +320,86 @@ def test_alias_is_scoped_to_the_tenant(
     with tenant_session(other_tenant_id) as session:
         resolution = _resolver(session, other_tenant_id).resolve("cano 100", "product")
     assert resolution.stage != "alias"
+
+
+# --- alias `low` nao atropela o catalogo (D-013) -------------------------
+
+
+def test_toque_errado_nao_vira_resposta_confiante_para_a_equipe(
+    tenant_id: uuid.UUID,
+) -> None:
+    """A garantia que o D-013 promete, agora cobrada.
+
+    O cenario: Carlos pergunta "cimento", recebe tres opcoes e erra o toque —
+    aponta um cano. Isso cria um alias `low` de "cimento" para o cano.
+
+    Antes, esse alias resolvia com nota 1.0 no primeiro estagio da cascata,
+    sem passar por limiar nenhum: a proxima pessoa a perguntar "cimento"
+    receberia o saldo do **cano**, com confianca, sem nenhuma ambiguidade — e
+    prometeria errado ao cliente dela. Um toque de uma pessoa passava a valer
+    mais que o catalogo inteiro, para todo o cliente.
+
+    Agora a discordancia entre o alias de um toque e o catalogo **pergunta**.
+    """
+    _sync(tenant_id)
+
+    with tenant_session(tenant_id) as session:
+        cimento = _resolver(session, tenant_id).resolve("cimento", "product")
+        assert cimento.status == "FOUND", "o catalogo resolve 'cimento' sozinho"
+        certo = cimento.entity
+        assert certo is not None
+
+        errado = next(
+            item
+            for item in session.scalars(select(CatalogItem)).all()
+            if item.entity_type == "product" and item.erp_entity_id != certo.erp_entity_id
+        )
+        aliases.record_choice(session, tenant_id, "product", "cimento", errado.erp_entity_id)
+        session.flush()
+
+        depois = _resolver(session, tenant_id).resolve("cimento", "product")
+    assert depois.status == "AMBIGUOUS", (
+        "um alias de um unico toque nao pode sobrepor o catalogo em silencio"
+    )
+    ids = {opcao.erp_entity_id for opcao in depois.options}
+    assert errado.erp_entity_id in ids and certo.erp_entity_id in ids
+
+
+def test_alias_confirmado_continua_resolvendo_direto(tenant_id: uuid.UUID) -> None:
+    """Dois usos sem correcao **compram** a confianca: ai o alias vale sozinho.
+
+    Sem isso o vocabulario aprendido perderia a razao de existir — ele precisa
+    resolver o que o catalogo nao resolve.
+    """
+    _sync(tenant_id)
+    with tenant_session(tenant_id) as session:
+        aliases.record_choice(session, tenant_id, "product", "cano 100", "4471")
+        aliases.record_successful_use(session, tenant_id, "product", "cano 100")
+        session.flush()
+
+        resolucao = _resolver(session, tenant_id).resolve("cano 100", "product")
+
+    assert resolucao.status == "FOUND"
+    assert resolucao.stage == "alias"
+    assert resolucao.entity is not None
+    assert resolucao.entity.erp_entity_id == "4471"
+
+
+def test_alias_low_vale_quando_o_catalogo_nao_acha_nada(tenant_id: uuid.UUID) -> None:
+    """A giria que so aquele cliente usa e o caso que o alias existe para servir.
+
+    "aquele tubo grosso" nao casa com nada por texto nem por vetor. Ali o alias
+    e o unico sinal, e vale — a resposta mostra qual entidade foi usada, como em
+    todo turno.
+    """
+    _sync(tenant_id)
+    with tenant_session(tenant_id) as session:
+        aliases.record_choice(session, tenant_id, "product", "xyzabc", "4471")
+        session.flush()
+
+        resolucao = _resolver(session, tenant_id).resolve("xyzabc", "product")
+
+    assert resolucao.status == "FOUND"
+    assert resolucao.stage == "alias"
+    assert resolucao.entity is not None
+    assert resolucao.entity.erp_entity_id == "4471"

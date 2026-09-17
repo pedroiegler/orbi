@@ -55,6 +55,84 @@ números acima precisam ser revistos quando a tarifa do Brasil sair.
 
 ---
 
+# Para quem vender, nesta ordem (D-045)
+
+## Agora: distribuidor e atacado
+
+O cliente do MVP tem quatro marcas, e todas importam:
+
+| Marca | Por quê |
+|---|---|
+| **ERP com API oficial** | sem isso não há integração, e ler o banco direto é proibido |
+| **5 a 30 vendedores** que não têm acesso ao ERP | são eles que hoje ligam para o escritório perguntar estoque |
+| **Catálogo com nome abreviado e inconsistente** | é onde a resolução de entidade vale mais que uma busca comum |
+| **Custo e margem restritos a quem decide preço** | é onde a Field Policy vira diferencial em vez de detalhe |
+
+Material de construção, elétrica, hidráulica, autopeças, embalagens, alimentos.
+O vocabulário do produto já está calibrado para isso — "cimento", "tubo PVC",
+"saco", "metro" — e é esse acúmulo que fica difícil de copiar.
+
+**Vá fundo aqui até o terceiro cliente pagante.** É quando o `orbi onboard` passa
+a rodar em horas de verdade e o vocabulário aprendido começa a valer dinheiro.
+
+## Depois: rastreamento e logística
+
+A primeira expansão **não é um mercado novo — é o mesmo cliente comprando a
+segunda coisa.** Distribuidor tem frota ou transportadora, e "onde está a carga
+4471?" tem exatamente a forma de "quanto tem de cimento?": entidade resolvida,
+fato consultado, campo sensível por papel, erro visível.
+
+## O Orbi está preso a ERP?
+
+**Não.** Medindo o código: cerca de **12% está preso ao domínio** (as tools, os
+DTOs, o adapter do Odoo, a lista de campos, os templates, os datasets de eval).
+Os outros ~88% — canal, identidade, Policy Layer, papéis, resolução, auditoria,
+LLM, deadline, RLS, observabilidade — servem a qualquer sistema de registro.
+
+Mas **o código é a parte barata**. O que custa num ramo novo é saber quais são as
+quatro perguntas certas, o adapter de referência, os evals, o vocabulário
+acumulado e um cliente que dê credibilidade. É 12% do código e praticamente 100%
+do conhecimento de mercado.
+
+A razão que decide:
+
+```
+2º cliente, mesmo ramo e mesmo ERP   →  horas
+2º cliente, ERP diferente            →  dias  (um adapter + Conformance Kit)
+1º cliente de um ramo novo           →  semanas, e sem referência nenhuma
+```
+
+Enquanto a linha de cima não estiver provada com dinheiro, mudar de direção é
+caro. A opcionalidade já está guardada na arquitetura — o erro seria **gastá-la
+antes do primeiro cliente**.
+
+## O filtro para qualquer ramo novo
+
+Um ramo serve quando **as seis** valem. Menos que seis, recuse:
+
+| # | Condição | O que quebra se faltar |
+|---|---|---|
+| 1 | Existe **API oficial** do sistema de registro | não há adapter — ler banco direto é proibido |
+| 2 | As perguntas **se repetem** | o vocabulário não acumula e o ativo durável não existe |
+| 3 | A resposta é um **fato**, não um julgamento | o template não serve, e o LLM teria que redigir |
+| 4 | Quem pergunta **não tem acesso** ao sistema | ele consulta sozinho — não há produto |
+| 5 | Há **campos sensíveis por papel** | a Field Policy, que é o diferencial, não vale nada |
+| 6 | Erro é **visível e barato** | o custo do erro mata a confiança antes de ela nascer |
+
+### Os ramos já avaliados
+
+| Ramo | Veredito | Onde trava |
+|---|---|---|
+| **Distribuidor / atacado** | ✅ o MVP | — |
+| **Rastreamento / logística** | ✅ a primeira expansão | — |
+| **Empréstimo / crédito** | ⚠️ risco alto | **item 4**: quem pergunta costuma ser o próprio devedor, e aí é B2C — o cadastro prévio obrigatório, que é a base da segurança, não escala para milhares de tomadores. E **item 6**: errar saldo devedor não é ticket de suporte, é problema jurídico |
+| **Seguros** | ❌ recusar | **item 3**: cobertura de apólice é interpretação de contrato, não campo de banco. Responder exigiria o LLM redigir — a única linha que o produto não cruza. Atender seguros exigiria desmontar o que o diferencia |
+
+O detalhe que vale guardar: seguros é um **não técnico**, não um não de mercado.
+O mercado é grande; a arquitetura é que não serve, e mudá-la custaria o produto.
+
+---
+
 # O primeiro cliente: a oferta de fundador
 
 Não venda o plano cheio para o primeiro. Venda isto:
@@ -99,16 +177,30 @@ ganhar dinheiro: é para provar que existe alguém disposto a pagar.
 
 Você perguntou se isso é praxe. É — e é o padrão dominante no setor.
 
-Salesforce cobra de US$ 25 a 300 por usuário/mês. Jira, US$ 7,75 a 15,25. Slack,
-US$ 8,75. Figma, US$ 15 por editor. Todos limitam por pessoa.
+Salesforce cobra de **US$ 25 (Starter) a 350 (Unlimited)** por usuário/mês, e
+US$ 550 no Agentforce. Jira, Slack e Figma cobram por pessoa do mesmo jeito.
+Limitar usuários não é invenção sua — é o formato padrão do setor.
 
-E o modelo que o Orbi usa — **assinatura com teto de uso** — é hoje o **mais
-comum em software B2B, com 37% do mercado**, tendo subido de 25% no ano anterior.
-Ou seja: você não está inventando nada estranho. Está usando o formato que o
-mercado convergiu.
+Sobre o **teto de uso**, seja preciso ao citar, porque o cliente pode conferir no
+celular durante a reunião:
 
-Um detalhe de contexto: cliente brasileiro paga em média 12% menos que o
-americano pelo mesmo software. Os preços acima já estão calibrados para o Brasil.
+- **37% das empresas de SaaS B2B usam precificação híbrida** (mensalidade fixa
+  **mais** cobrança por consumo);
+- **42% oferecem alguma forma de cobrança por uso**, contra 27% em 2023;
+- **53% ainda monetizam só por assinatura.**
+
+O Orbi fica entre os dois: assinatura fixa com um **teto** de uso, sem cobrança
+por excedente. É mais próximo do modelo de assinatura tradicional que do híbrido
+— então **não diga "37% do mercado usa o nosso modelo"**. Diga o que é verdade e
+serve melhor: *"cobramos assinatura fixa com um limite generoso, para que sua
+conta seja previsível — sem a fatura variável que o modelo por consumo traz."*
+
+Um detalhe de contexto que vale confirmar antes de citar: cliente brasileiro paga
+em média cerca de 12% menos que o americano pelo mesmo software. Os preços acima
+já estão calibrados para o Brasil.
+
+*(Preços de terceiros e participações de mercado conferidos em 03/09/2026.
+Reconfira antes de usar em proposta — tabela de concorrente muda sem aviso.)*
 
 ## O que o cliente vai perguntar, e o que responder
 
@@ -169,9 +261,30 @@ qual produto foi usado, então erro vira visível e corrigível.
 a cada pergunta — não há cache. Mas se o ERP do cliente estiver desatualizado, a
 resposta reflete isso. A fonte da verdade continua sendo o ERP dele.
 
-**Nunca omita o que o número de WhatsApp custa.** Ele é do cliente, e a partir de
-outubro de 2026 as mensagens têm custo. Dizer isso na venda evita a conversa ruim
-em novembro.
+**Nunca omita o que o número de WhatsApp custa.** A partir de outubro de 2026 as
+mensagens dentro da janela de 24 h voltam a ter custo. Dizer isso na venda evita
+a conversa ruim em novembro.
+
+### As duas origens de número (D-043)
+
+O cliente escolhe, e as duas são oferecidas de verdade:
+
+| | **Número dele** | **Número nosso** |
+|---|---|---|
+| Como | ele verifica o CNPJ no Business Portfolio e libera nosso acesso | criamos e operamos para ele |
+| Prazo para subir | horas, **se** o portfólio já estiver verificado | imediato |
+| Se não estiver verificado | dias a semanas, com documento | — |
+| Na saída | ele leva o número e a conversa | precisa migrar |
+| Risco de portfólio | dele | **nosso** |
+
+A frase para a venda: *"Você prefere que o número fique na sua conta da Meta ou
+na nossa? Na sua, você tem o controle e leva o número se um dia sair. Na nossa,
+sobe hoje."*
+
+O que **não** dizer: que tanto faz. Portfólio da Meta desabilitado trava todas as
+WABAs dentro dele — então cada cliente que hospedarmos deve ficar em portfólio
+separado, e essa é uma conta que cresce. Quando hospedar deixar de ser exceção,
+ela precisa de preço próprio.
 
 ---
 
@@ -201,16 +314,45 @@ O roteiro completo do go-live está em [ORBI-IMPLANTACAO.md](ORBI-IMPLANTACAO.md
 
 # Onde a margem fica
 
+## De onde vem o custo
+
+Não aceite o total sem a conta. São três parcelas, e elas se comportam de forma
+muito diferente:
+
+| Parcela | Comportamento | Valor | Origem do número |
+|---|---|---|---|
+| VPS, Postgres e backup | **fixo** — não cresce com o cliente | R$ 150 a 400/mês no total | ⚠️ **estimativa, sem cotação** — peça o preço real antes de decidir |
+| LLM | por pergunta | R$ 6 a 30 por cliente | **medido**: 890 tokens de entrada, 24 de saída, contra a API real ([ORBI-MODELOS.md](ORBI-MODELOS.md)) |
+| Mensagens do WhatsApp | por mensagem, **a partir de out/2026** | R$ 130 a 265 por cliente | tarifa do Brasil ainda não publicada |
+
+A parcela fixa é o que faz a margem melhorar com escala: o décimo cliente divide
+a mesma VPS que o segundo.
+
+## A conta, hoje (sem a tarifa da Meta)
+
 | Situação | Receita | Custo | Margem |
 |---|---|---|---|
-| 1 cliente fundador (R$ 350) | R$ 350 | R$ 250–470 | negativa a zero |
-| 1 cliente pagante (R$ 890) | R$ 890 | R$ 250–470 | 47–72% |
-| 3 clientes | ~R$ 2.200 | R$ 500–800 | 64–77% |
-| 10 clientes | ~R$ 7.500 | R$ 1.200–2.500 | 67–84% |
+| 1 cliente fundador (R$ 350) | R$ 350 | R$ 156–430 | negativa a 55% |
+| 1 cliente pagante (R$ 890) | R$ 890 | R$ 156–430 | 52–82% |
+| 3 clientes | ~R$ 2.200 | R$ 168–490 | 78–92% |
+| 10 clientes | ~R$ 7.500 | R$ 210–700 | 91–97% |
 
 O primeiro cliente não fecha a conta, e não precisa: ele existe para provar. **O
 segundo cliente a preço cheio já deixa a operação no azul** — porque o custo
 marginal do décimo é praticamente o mesmo do segundo.
 
-Números de mensagem da Meta não estão nessa tabela ainda. Quando a tarifa sair,
-some R$ 130 a 265 por cliente e recalcule.
+## A mesma conta a partir de outubro de 2026
+
+Com a tarifa da Meta, some R$ 130 a 265 **por cliente** — e essa parcela **não**
+amortiza:
+
+| Situação | Receita | Custo | Margem |
+|---|---|---|---|
+| 1 cliente pagante | R$ 890 | R$ 286–695 | 22–68% |
+| 3 clientes | ~R$ 2.200 | R$ 558–1.285 | 42–75% |
+| 10 clientes | ~R$ 7.500 | R$ 1.510–3.350 | 55–80% |
+
+É por isso que o teto de consultas deixa de ser proteção contra abuso e vira
+controle de margem naquela data. **Refaça esta tabela com a tarifa real quando
+ela sair** — as duas colunas de custo aqui são as únicas do documento que
+dependem de um número que ninguém publicou ainda.

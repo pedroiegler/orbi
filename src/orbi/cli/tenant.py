@@ -12,9 +12,11 @@ from orbi.catalog.sync import deactivate_all
 from orbi.cli.common import console, fail, ok, resolve_tenant_id, table, warn
 from orbi.core import plans
 from orbi.core.crypto import CredentialCipher
+from orbi.core.errors import ConfigurationError
 from orbi.db.models import Tenant, TenantSettings, TenantTool, User
 from orbi.db.seed import sync_global_config
 from orbi.db.session import admin_session, tenant_session
+from orbi.llm import tenant_keys
 from orbi.tools.registry import tool_names
 
 app = typer.Typer(help="Clientes (tenants).", no_args_is_help=True)
@@ -92,11 +94,86 @@ def set_token(
     ok(f"token do canal atualizado para '{slug}'")
 
 
-@app.command("list")
-def list_tenants() -> None:
-    """Lista os clientes."""
+@app.command("set-llm")
+def set_llm(
+    slug: SlugOption,
+    provider: Annotated[str, typer.Option("--provider", help="openai, anthropic ou gemini.")],
+    api_key: Annotated[str, typer.Option("--api-key", help="Chave do projeto deste cliente.")],
+    model: Annotated[str, typer.Option("--model", help="Modelo que este cliente usa.")],
+) -> None:
+    """Da a este cliente a propria chave de LLM, cifrada (D-041).
+
+    Vale quando o cliente tem projeto proprio no provedor: o gasto dele ganha
+    teto proprio, e a cota dele para de ser dividida com os outros.
+    """
+    tenant_id = resolve_tenant_id(slug)
+    try:
+        credencial = tenant_keys.montar_credencial(provider, api_key, model)
+    except ConfigurationError as exc:
+        fail(str(exc))
+
     with admin_session() as session:
-        tenants = session.scalars(select(Tenant).order_by(Tenant.created_at)).all()
+        settings = session.get(TenantSettings, tenant_id)
+        assert settings is not None
+        settings.llm_credentials_encrypted = tenant_keys.cifrar(credencial)
+    tenant_keys.limpar_cache()
+
+    ok(f"'{slug}' passa a usar chave propria: {provider} · {model}")
+    if tenant_keys.modelo_sem_preco(credencial):
+        warn(
+            f"'{model}' esta fora da tabela de precos: o custo por turno "
+            "seria gravado como zero. Acrescente em llm/pricing.py."
+        )
+    console.print(
+        "  [dim]Se a chave do cliente falhar (teto estourado, revogada), o turno "
+        "cai para a chave global e um alerta e emitido — o cliente nao fica sem "
+        "resposta, mas o gasto volta a ser nosso.[/dim]"
+    )
+
+
+@app.command("clear-llm")
+def clear_llm(slug: SlugOption) -> None:
+    """Devolve o cliente a chave global."""
+    tenant_id = resolve_tenant_id(slug)
+    with admin_session() as session:
+        settings = session.get(TenantSettings, tenant_id)
+        assert settings is not None
+        tinha = settings.llm_credentials_encrypted is not None
+        settings.llm_credentials_encrypted = None
+    tenant_keys.limpar_cache()
+    if not tinha:
+        warn(f"'{slug}' ja usava a chave global: nada a fazer")
+        return
+    ok(f"'{slug}' voltou a usar a chave global")
+
+
+@app.command("list")
+def list_tenants(
+    slugs: Annotated[
+        bool,
+        typer.Option("--slugs", help="So os slugs, um por linha. Para scripts e cron."),
+    ] = False,
+    ativos: Annotated[
+        bool, typer.Option("--ativos/--todos", help="Filtra por status ativo.")
+    ] = False,
+) -> None:
+    """Lista os clientes.
+
+    `--slugs` existe porque o cron precisa de uma lista, e extrair slug de uma
+    tabela desenhada com `awk` nao funciona: a borda vira um item vazio e o nome
+    que quebra em duas linhas vira um item `|`. Cada cliente novo acrescentava
+    uma falha por noite no log — e log com falha rotineira e log que ninguem le.
+    """
+    with admin_session() as session:
+        consulta = select(Tenant).order_by(Tenant.created_at)
+        if ativos:
+            consulta = consulta.where(Tenant.status == "active")
+        tenants = session.scalars(consulta).all()
+
+    if slugs:
+        for tenant in tenants:
+            print(tenant.slug)
+        return
 
     if not tenants:
         warn("nenhum tenant cadastrado")
@@ -147,6 +224,7 @@ def show(slug: SlugOption) -> None:
     )
     view.add_row("numero", tenant.channel_address or "-")
     view.add_row("token de canal", "configurado" if tenant.channel_token_encrypted else "ausente")
+    view.add_row("chave de LLM", tenant_keys.descricao(settings.llm_credentials_encrypted))
     view.add_row(
         "limiares",
         f"top1 {settings.resolution_top1_threshold} · gap {settings.resolution_gap_threshold}",

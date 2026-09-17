@@ -103,6 +103,7 @@ ou cliente que não é da empresa dele.
 
 ```bash
 orbi maintenance verify-audit                    # a auditoria está íntegra?
+orbi trace show T6XLNJ --tenant silva            # o turno que o cliente citou
 pytest tests/integration/test_rls.py -q          # o RLS ainda vale?
 pytest tests/unit/test_architecture.py -q        # alguém usou o engine direto?
 ```

@@ -177,7 +177,12 @@ responder errado sobre quantidade.
 
 ## Banco
 
-Um PostgreSQL, `tenant_id` em tudo, RLS forçado. 14 tabelas.
+Um PostgreSQL, RLS forçado. **Toda tabela que guarda dado de um cliente tem
+`tenant_id` e política de RLS.** São globais de propósito, e por isso sem
+`tenant_id`: `tenants`, `roles`, `capabilities`, `tools`, `role_tools`,
+`role_capabilities` (o catálogo do produto, igual para todos), `eval_runs` e
+`rate_limit_counters` (dados de operação, escritos só pela CLI e pelo Runtime,
+sem caminho de leitura por cliente).
 
 As que costumam ser esquecidas: `erp_connections` (credenciais cifradas), `entity_aliases` (a
 gíria aprendida), `user_identities`, `pending_resolutions`, `catalog_sync_runs`, `tenant_settings`.

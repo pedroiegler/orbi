@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from unittest import mock
 
 import pytest
 
@@ -459,3 +460,50 @@ def test_lite_models_can_omit_the_thinking_field() -> None:
     GeminiProvider("chave", thinking_budget=-1, client=client).complete(_gemini_request())
 
     assert client.calls[0]["config"].thinking_config is None
+
+
+# --- chave por cliente (D-041) -------------------------------------------
+
+
+def test_router_do_cliente_usa_a_chave_propria_e_guarda_a_global_de_reserva() -> None:
+    """O que o cliente com projeto proprio compra: o turno dele sai da conta
+    dele, e a nossa so entra se a dele parar."""
+    from orbi.core.crypto import CredentialCipher
+    from orbi.llm import tenant_keys
+    from orbi.runtime.pipeline import OrbiRuntime
+
+    global_provider = _FakeProvider("gemini", "google")
+    do_cliente = _FakeProvider("openai", "openai")
+    runtime = OrbiRuntime(LLMRouter(primary=global_provider))
+
+    blob = CredentialCipher().encrypt(
+        {"provider": "openai", "api_key": "sk-teste", "model": "gpt-5-mini"}
+    )
+    with mock.patch.object(tenant_keys, "provider_do_tenant", return_value=do_cliente):
+        router = runtime._router_for(blob)
+
+    assert router.primary is do_cliente
+    assert router.fallback is global_provider
+
+
+def test_sem_chave_propria_o_router_e_o_global_sem_copia() -> None:
+    from orbi.runtime.pipeline import OrbiRuntime
+
+    global_router = LLMRouter(primary=_FakeProvider("gemini", "google"))
+    runtime = OrbiRuntime(global_router)
+
+    assert runtime._router_for(None) is global_router
+
+
+def test_duas_contas_do_mesmo_fabricante_sao_um_fallback_legitimo() -> None:
+    """A regra dos dois fabricantes existe contra queda correlacionada. Duas
+    contas da mesma empresa nao caem juntas por teto de gasto ou revogacao —
+    esses sao eventos de conta, nao de fabricante."""
+    do_cliente = _FakeProvider("openai", "openai")
+    nosso = _FakeProvider("openai", "openai")
+
+    with pytest.raises(ConfigurationError):
+        LLMRouter(primary=do_cliente, fallback=nosso)
+
+    router = LLMRouter(primary=do_cliente, fallback=nosso, contas_distintas=True)
+    assert router.fallback is nosso

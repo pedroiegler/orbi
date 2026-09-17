@@ -641,7 +641,7 @@ Cada conceito tem um mecanismo concreto, não apenas uma intenção:
 |---|---|
 | Authentication | `user_identities` por canal, cadastro prévio obrigatório, re-verificação por código |
 | Authorization | Policy Layer deny-by-default, decisão tipada com `reason_code` |
-| RBAC | 3 papéis visíveis (`sales_rep`, `finance`, `admin`) sobre capabilities internas |
+| RBAC | capabilities internas; 3 papéis padrão (`sales_rep`, `finance`, `admin`) e papéis próprios por cliente (D-040) |
 | Field-level | Field Policy na saída do Adapter, whitelist por `(role, tool)` |
 | Tenant isolation | `tenant_id` em tudo + RLS + canary tenant no CI |
 | RLS | Role sem `BYPASSRLS`, `FORCE ROW LEVEL SECURITY`, `SET LOCAL app.tenant_id` |

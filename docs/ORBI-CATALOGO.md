@@ -94,7 +94,21 @@ orbi catalog aliases --tenant construtora-silva
 
 Cada desambiguação resolvida vira alias daquele cliente. O alias **não** nasce
 confirmado: entra com `confidence=low` e só é promovido depois de dois usos sem
-correção. Um toque errado não pode envenenar a resolução do cliente para sempre.
+correção. E a diferença entre os dois estados é de **comportamento**, não de
+etiqueta:
+
+| Estado | Como a cascata trata |
+|---|---|
+| `confirmed` | resolve direto, no primeiro estágio — o vocabulário já se provou |
+| `low`, e o catálogo **concorda** | resolve direto, e o uso conta para promover |
+| `low`, e o catálogo **não acha nada** | vale — é o único sinal, e é para isso que o alias existe (a gíria que só aquele cliente usa) |
+| `low`, e o catálogo aponta **outra coisa** | **pergunta "qual desses?"** |
+
+A última linha é a que sustenta a promessa. Um alias `low` nasceu de **um** toque
+de **uma** pessoa; ele não pode valer mais que o catálogo inteiro. Sem isso, um
+toque errado numa desambiguação viraria resposta confiante para toda a equipe
+daquele cliente — a próxima pessoa a usar o mesmo termo receberia o saldo do
+produto errado, sem nenhum aviso, e prometeria errado ao cliente dela.
 
 Esse acúmulo é dado proprietário e é a defesa competitiva mais durável do
 produto: não se copia, se acumula.

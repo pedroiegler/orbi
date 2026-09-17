@@ -10,20 +10,58 @@ cadastro naquele número.
 
 ## Papéis
 
+Todo cliente começa com três, que servem para a maioria:
+
 ```
 sales_rep  → check_stock, check_price, get_last_order
 finance    → list_open_invoices, get_last_order, check_price (com custo)
 admin      → tudo
 ```
 
-O cliente enxerga três nomes. Internamente cada papel é um preset sobre
-capabilities (`stock:read`, `price:read`, `price:read_cost`, `invoice:read`,
-`customer:read`).
+Mas **os papéis são do cliente, não do Orbi** (D-040). Cada empresa tem processo
+diferente: há distribuidor onde o vendedor negocia margem e precisa ver custo, e
+há onde ele não pode ver preço de tabela sem aprovação. Um papel próprio se cria
+sem tocar em código e sem deploy:
 
-**O que separa `check_price` de `check_price com custo` é a Field Policy, não uma
-tool diferente.** Quando um cliente pedir "meu gerente vê tudo menos custo", isso
-é uma linha de configuração em `ROLE_CAPABILITIES` e na `FIELD_POLICY` — não um
-deploy de emergência nem uma tool nova.
+```bash
+# o que existe para compor um papel
+orbi role capabilities
+
+# um papel que só esse cliente tem
+orbi role set --tenant construtora-silva --role gerente \
+  --name "Gerente Comercial" --caps "stock:read,price:read,price:read_cost,invoice:read"
+
+# o que vale hoje nesse cliente, e de onde cada papel vem
+orbi role list --tenant construtora-silva
+orbi role show --tenant construtora-silva --role gerente
+
+# voltar ao padrão do código
+orbi role reset --tenant construtora-silva --role gerente
+```
+
+### Três regras que valem conhecer antes de customizar
+
+**A lista substitui, não soma.** `orbi role set` define o papel inteiro. Não há
+herança do padrão. Herança silenciosa é como uma permissão sobrevive a uma
+remoção: alguém tira `price:read_cost` e o custo continua aparecendo porque o
+padrão o reintroduziu.
+
+**Papel vazio não consulta nada.** Quem esquecer de preencher as permissões fica
+sem acesso, não com acesso total. O mesmo vale para papel que ninguém criou: um
+`--role` desconhecido não concede acesso, ele remove todo o acesso.
+
+**Permissão inventada é recusada no cadastro.** Erro de digitação para alto, na
+CLI, e não vira acesso.
+
+### O que decide o custo é a permissão, não o nome do papel
+
+O que separa `check_price` de `check_price com custo` é a Field Policy, e ela é
+indexada por **permissão** (`price:read_cost`) — tanto faz se o papel se chama
+`finance`, `gerente_comercial` ou `diretoria`. É isso que permite cada cliente
+ter os próprios nomes sem que ninguém precise mexer no código.
+
+Papéis próprios de um cliente **não existem** para outro. O nome do papel sozinho
+já contaria como a operação do vizinho é organizada.
 
 ---
 
@@ -54,8 +92,11 @@ orbi user list --tenant construtora-silva
 orbi user set-role --phone "+5543999990001" --role finance
 ```
 
-A troca vale no próximo turno: as tools são filtradas por papel **na montagem do
-prompt**, então o modelo nem chega a ver a tool que o novo papel não pode chamar.
+`--role` aceita tanto os três padrões quanto qualquer papel próprio do cliente.
+
+A troca vale no próximo turno: as tools são filtradas pelas permissões do papel
+**na montagem do prompt**, então o modelo nem chega a ver a tool que o novo papel
+não pode chamar.
 
 ## Desativar
 

@@ -34,10 +34,21 @@ class LLMRouter:
 
     primary: LLMPort
     fallback: LLMPort | None = None
+    contas_distintas: bool = False
+    """Dispensa a regra dos dois fabricantes — e so um caso a dispensa (D-041).
+
+    A regra existe contra **queda correlacionada**: dois provedores da mesma
+    empresa caem juntos, e o fallback vira enfeite (D-011). Ela nao se aplica
+    quando os dois lados sao *contas diferentes do mesmo fabricante*: a chave
+    propria de um cliente para por teto de gasto estourado ou por revogacao, e
+    nenhum dos dois atinge a nossa conta. Ali o fallback e real.
+
+    Marcar isso a toa reintroduziria exatamente o risco que a regra evita."""
 
     def __post_init__(self) -> None:
         if (
             self.fallback is not None
+            and not self.contas_distintas
             and self.primary.manufacturer == self.fallback.manufacturer
         ):
             raise ConfigurationError(
@@ -79,28 +90,44 @@ class LLMRouter:
 
 
 def build_provider(name: str, settings: Settings | None = None) -> LLMPort:
+    """O provedor da configuracao global — o caminho da maioria dos clientes."""
     resolved = settings or get_settings()
-    if name == "gemini":
-        return gemini_provider.build(
-            api_key=resolved.gemini_api_key.get_secret_value(),
-            model=resolved.gemini_model,
-            thinking_budget=resolved.gemini_thinking_budget,
-        )
-    if name == "anthropic":
-        return anthropic_provider.build(
-            api_key=resolved.anthropic_api_key.get_secret_value(),
-            model=resolved.anthropic_model,
-        )
-    if name == "openai":
-        return openai_provider.build(
-            api_key=resolved.openai_api_key.get_secret_value(),
-            model=resolved.openai_model,
+    chaves = {
+        "gemini": (resolved.gemini_api_key, resolved.gemini_model),
+        "anthropic": (resolved.anthropic_api_key, resolved.anthropic_model),
+        "openai": (resolved.openai_api_key, resolved.openai_model),
+    }
+    if name in chaves:
+        segredo, modelo = chaves[name]
+        return build_provider_with(
+            name, api_key=segredo.get_secret_value(), model=modelo, settings=resolved
         )
     if name == "rule_based":
         if resolved.is_production:
             raise ConfigurationError("provedor rule_based nao e permitido em producao")
         return rule_based.build()
     raise ConfigurationError(f"provedor de LLM desconhecido: {name}")
+
+
+def build_provider_with(
+    name: str, *, api_key: str, model: str, settings: Settings | None = None
+) -> LLMPort:
+    """Provedor com chave e modelo explicitos.
+
+    Existe para a chave por cliente (D-041): a global vem das settings, a do
+    cliente vem cifrada do banco, e as duas passam por aqui — um caminho so
+    para construir provedor significa um lugar so para corrigir.
+    """
+    resolved = settings or get_settings()
+    if name == "gemini":
+        return gemini_provider.build(
+            api_key=api_key, model=model, thinking_budget=resolved.gemini_thinking_budget
+        )
+    if name == "anthropic":
+        return anthropic_provider.build(api_key=api_key, model=model)
+    if name == "openai":
+        return openai_provider.build(api_key=api_key, model=model)
+    raise ConfigurationError(f"provedor de LLM sem suporte a chave propria: {name}")
 
 
 def build_router(settings: Settings | None = None) -> LLMRouter:

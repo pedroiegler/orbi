@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 
 from orbi.db.base import app_engine
 from orbi.db.models import AuditLog, CatalogItem, Tenant, User
-from orbi.db.session import current_tenant, tenant_session
+from orbi.db.session import admin_session, current_tenant, tenant_session
 from tests.conftest import CANARY_TENANT_ID, CanaryLeak
 
 pytestmark = pytest.mark.integration
@@ -114,3 +114,77 @@ def test_canary_guard_catches_a_real_leak() -> None:
     """Prova que a fixture global funciona: ler o canario explicitamente falha."""
     with pytest.raises(CanaryLeak), tenant_session(CANARY_TENANT_ID) as session:
         session.execute(select(CatalogItem)).all()
+
+
+def test_toda_tabela_com_tenant_id_tem_rls_forcado() -> None:
+    """A documentacao afirma isso. Um teste e a unica forma de continuar verdade.
+
+    Tabela nova com `tenant_id` e sem RLS nasce legivel por qualquer cliente, e
+    o erro so aparece quando ja houver dado de dois clientes la dentro. Aqui ele
+    aparece no primeiro `pytest`.
+    """
+    with admin_session() as session:
+        desprotegidas = session.execute(
+            text(
+                """
+                SELECT c.relname
+                FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE n.nspname = 'public'
+                  AND c.relkind IN ('r', 'p')
+                  AND EXISTS (
+                      SELECT 1 FROM information_schema.columns col
+                      WHERE col.table_schema = 'public'
+                        AND col.table_name = c.relname
+                        AND col.column_name = 'tenant_id'
+                  )
+                  AND NOT (c.relrowsecurity AND c.relforcerowsecurity)
+                ORDER BY c.relname
+                """
+            )
+        ).scalars().all()
+
+    assert not desprotegidas, f"tabelas com tenant_id e sem RLS forcado: {desprotegidas}"
+
+
+def test_tabelas_globais_sao_exatamente_as_esperadas() -> None:
+    """Sem `tenant_id` so pode existir o que e global de proposito.
+
+    Este teste falha quando alguem cria uma tabela de dado de cliente e esquece
+    o `tenant_id` — o momento certo de perceber, porque depois de a tabela ter
+    dado de dois clientes o conserto ja e migracao de dados.
+    """
+    esperadas = {
+        # catalogo do produto, igual para todos os clientes
+        "tenants", "roles", "capabilities", "tools", "role_tools", "role_capabilities",
+        # operacao: escritas pela CLI e pelo Runtime, sem leitura por cliente
+        "eval_runs", "rate_limit_counters",
+        "alembic_version",
+    }
+    with admin_session() as session:
+        globais = set(
+            session.execute(
+                text(
+                    """
+                    SELECT c.relname
+                    FROM pg_class c
+                    JOIN pg_namespace n ON n.oid = c.relnamespace
+                    WHERE n.nspname = 'public'
+                      AND c.relkind IN ('r', 'p')
+                      AND c.relname NOT LIKE 'audit_logs_%'
+                      AND NOT EXISTS (
+                          SELECT 1 FROM information_schema.columns col
+                          WHERE col.table_schema = 'public'
+                            AND col.table_name = c.relname
+                            AND col.column_name = 'tenant_id'
+                      )
+                    """
+                )
+            ).scalars().all()
+        )
+
+    novas = globais - esperadas
+    assert not novas, (
+        f"tabela sem tenant_id que ninguem declarou global: {sorted(novas)}. "
+        "Se guarda dado de cliente, ela precisa de tenant_id e RLS."
+    )

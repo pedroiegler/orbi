@@ -11,7 +11,7 @@ problema.
 | Item | Quem resolve | Sem isso |
 |---|---|---|
 | Credencial de leitura no ERP | cliente | não há integração |
-| Número de WhatsApp Business do cliente | cliente | não há canal |
+| Número de WhatsApp Business (ver abaixo) | cliente **ou** equipe | não há canal |
 | Lista de usuários: nome, número, papel | cliente | ninguém consegue perguntar |
 | **20 perguntas reais escritas pelo cliente** | cliente | não há critério de aprovação |
 | Warm-up do número iniciado | equipe | risco de bloqueio no go-live |
@@ -26,6 +26,35 @@ python -c "from pathlib import Path; from orbi.evals.acceptance import write_tem
 O cliente preenche com as perguntas **do jeito que a equipe dele fala**. Esse
 arquivo vira o critério de aprovação — e o argumento que encerra o "não me
 convenceu".
+
+### De quem é o número (D-043)
+
+O cliente escolhe entre duas, e as duas são oferecidas de verdade.
+
+**Opção A — o número é dele.** Ele cria (ou já tem) o Business Portfolio,
+verifica o CNPJ, cadastra o número e adiciona o Orbi como parceiro. Nada muda no
+ORBI: `orbi tenant set-token` grava o token e o `phone_number_id` do mesmo jeito.
+
+- Sobe em horas **se o portfólio já estiver verificado**. Se não estiver, a
+  verificação leva dias a semanas e pede documento — confirme isso *antes* de
+  prometer prazo.
+- Na saída, ele leva o número e a conversa. Sem migração, sem atrito.
+
+**Opção B — o número é nosso.** Criamos e operamos.
+
+- Sobe imediato. É o que destrava a PoC de quem ainda não tem portfólio.
+- **Cada cliente hospedado fica no próprio Business Portfolio.** Não é
+  preciosismo: portfólio desabilitado por violação de integridade trava *todas*
+  as WABAs dentro dele. Um portfólio para todos significa que a violação de um
+  derruba todos.
+- ⚠️ **Isso tem teto.** A Meta limita quantos portfólios uma pessoa pode criar —
+  as fontes públicas divergem entre 2 e 5, e não conseguimos confirmar na
+  documentação oficial. **Confirme o seu limite no Business Manager antes de
+  vender a opção B para o terceiro cliente.** Quando o teto chegar, hospedar
+  deixa de ser exceção operacional e vira decisão de preço.
+
+Registre a escolha na abertura do cliente. Ela muda o que acontece na saída dele,
+e descobrir isso no cancelamento é a pior hora.
 
 ---
 
@@ -106,8 +135,26 @@ A terceira pergunta é a mais importante: o vendedor **não pode** ver título.
 orbi tenant debug --tenant construtora-silva --on
 ```
 
-A resposta passa a trazer o código curto do trace no rodapé. O usuário reclama
-citando o código e a investigação já começa pronta. Desligue ao fim do piloto.
+A resposta passa a trazer o código curto do trace no rodapé:
+
+```
+CIM CP-II 50KG (CIMCP2) — 575 Units disponíveis
+
+_ref T6XLNJ_
+```
+
+O cliente cita o código, e o comando devolve o turno inteiro:
+
+```bash
+orbi trace show T6XLNJ --tenant construtora-silva
+```
+
+Quem perguntou, a pergunta literal, a tool escolhida, **qual produto foi
+resolvido e por qual etapa da cascata**, a decisão da policy, a latência por
+etapa e o hash do que o ERP devolveu. A busca corre dentro da sessão do cliente,
+então o código de um cliente não encontra turno de outro.
+
+Desligue ao fim do piloto.
 
 ---
 

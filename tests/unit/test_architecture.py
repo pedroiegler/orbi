@@ -10,12 +10,14 @@ from __future__ import annotations
 import ast
 import re
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from orbi.tools.registry import FORBIDDEN_TOOL_PATTERNS, all_tools, tool_names
 
-SRC = Path(__file__).resolve().parents[2] / "src" / "orbi"
+ROOT = Path(__file__).resolve().parents[2]
+SRC = ROOT / "src" / "orbi"
 
 CORE_PACKAGES = {"core", "db", "tools"}
 """Camadas de baixo: nao podem importar camadas de cima."""
@@ -55,7 +57,7 @@ def test_only_the_session_module_touches_the_engine() -> None:
             offenders.append(relative)
 
     assert offenders == [], (
-        "estes modulos usam o engine direto em vez de `tenant_session`: " f"{offenders}"
+        f"estes modulos usam o engine direto em vez de `tenant_session`: {offenders}"
     )
 
 
@@ -95,6 +97,34 @@ def test_no_module_branches_on_the_erp_name() -> None:
             if pattern.search(line):
                 offenders.append(f"{relative}:{line_number}")
     assert offenders == [], f"condicional por ERP fora do adapter: {offenders}"
+
+
+def test_no_module_branches_on_the_tenant() -> None:
+    """A regra que sustenta a resposta a "pode customizar para um cliente?".
+
+    Diferenca entre clientes vive em **linha de tabela**, nunca em ramo de
+    codigo: papel proprio, tool ligada ou desligada, alias, limiar calibrado,
+    chave de LLM. Tudo isso e dado.
+
+    Um `if tenant == "construtora-silva"` seria o primeiro de dois produtos. O
+    segundo cliente pede o oposto, o terceiro pede uma variacao, e a partir dai
+    cada correcao de bug precisa ser pensada N vezes — uma por cliente — porque
+    ninguem mais sabe quem esta em qual ramo. O custo nao aparece no dia em que
+    a linha e escrita; ele aparece um ano depois, em cada mudanca.
+    """
+    pattern = re.compile(
+        r"""(?i)\b(if|elif)\b[^\n]*\b(tenant|tenant_id|slug|cliente)\b\s*(==|!=)\s*['"]"""
+    )
+    offenders: list[str] = []
+    for path in _modules():
+        relative = str(path.relative_to(SRC))
+        for line_number, line in enumerate(_code_lines(path), 1):
+            if pattern.search(line):
+                offenders.append(f"{relative}:{line_number}")
+    assert offenders == [], (
+        f"condicional por tenant no codigo: {offenders}. "
+        "Diferenca entre clientes e configuracao, nao ramo."
+    )
 
 
 def _code_lines(path: Path) -> list[str]:
@@ -222,7 +252,7 @@ def test_every_llm_request_is_built_by_the_prompt_builder() -> None:
 def test_tool_spec_artifacts_are_in_sync() -> None:
     """Um teste de CI falha se algum artefato do `ToolSpec` dessincronizar."""
     from orbi.evals.runner import load_dataset
-    from orbi.policy.field_policy import FIELD_POLICY
+    from orbi.policy.field_policy import TOOL_FIELDS
     from orbi.render.renderer import TEMPLATES_DIR
 
     for spec in all_tools():
@@ -230,8 +260,7 @@ def test_tool_spec_artifacts_are_in_sync() -> None:
         assert spec.args_model is not None
         assert (TEMPLATES_DIR / spec.template).exists(), f"{spec.name} sem template"
         assert load_dataset(spec.eval_fixture), f"{spec.name} sem fixture de eval"
-        roles = {role for (role, tool) in FIELD_POLICY if tool == spec.name}
-        assert roles, f"{spec.name} sem whitelist de campos"
+        assert spec.name in TOOL_FIELDS, f"{spec.name} sem whitelist de campos"
 
 
 def test_registered_tools_match_the_database_seed() -> None:
@@ -314,3 +343,128 @@ def test_env_example_carries_no_real_secret() -> None:
         valor = valor.split("#")[0].strip()
         if any(marca in chave for marca in ("KEY", "SECRET", "TOKEN", "PASSWORD")):
             assert valor in {"", "change-me"}, f"{chave} tem valor no exemplo"
+
+
+# --- as rotinas de operacao ----------------------------------------------
+
+CRONTAB = ROOT / "docker" / "crontab"
+
+
+def _crontab_lines() -> list[str]:
+    """Linhas de comando do cron, sem comentario — comentario explica, nao roda."""
+    return [
+        linha
+        for linha in CRONTAB.read_text(encoding="utf-8").splitlines()
+        if linha.strip() and not linha.lstrip().startswith("#")
+    ]
+
+
+def _crontab_commands() -> list[str]:
+    """Os comandos `orbi ...` que o cron executa."""
+    return [
+        trecho.strip()
+        for linha in _crontab_lines()
+        for trecho in re.findall(r"orbi ((?:[a-z-]+ )*[a-z-]+(?: --[a-z-]+)*)", linha)
+    ]
+
+
+def test_every_cron_command_exists_in_the_cli() -> None:
+    """Cron que chama comando inexistente falha as 3h e ninguem ve.
+
+    A versao anterior deste arquivo chamava `orbi tenant list --quiet`, que
+    nunca existiu, e extraia o slug de uma tabela desenhada com `awk` — a borda
+    virava item vazio e nome quebrado em duas linhas virava `|`. Funcionava o
+    suficiente para parecer certo e falhava uma vez por cliente, toda noite.
+    """
+    from typer.main import get_command
+
+    from orbi.cli.main import app
+
+    raiz = get_command(app)
+    faltando: list[str] = []
+    for comando in _crontab_commands():
+        partes = comando.split()
+        atual: Any = raiz
+        for parte in partes:
+            if parte.startswith("--"):
+                # `secondary_opts` e o lado negativo de um par como
+                # `--dry-run/--apply`: as duas metades sao a mesma flag.
+                nomes = {
+                    opcao
+                    for parametro in getattr(atual, "params", [])
+                    for atributo in ("opts", "secondary_opts")
+                    for opcao in getattr(parametro, atributo, [])
+                }
+                if parte not in nomes:
+                    faltando.append(f"{comando} (flag {parte})")
+                break
+            proximo = getattr(atual, "commands", {}).get(parte)
+            if proximo is None:
+                faltando.append(f"{comando} (subcomando {parte})")
+                break
+            atual = proximo
+
+    assert faltando == [], f"o cron chama o que a CLI nao tem: {faltando}"
+
+
+def test_the_cron_does_not_parse_a_drawn_table() -> None:
+    """Saida para humano e para maquina sao coisas diferentes.
+
+    `--slugs` existe exatamente para isso. Voltar ao `awk` sobre a tabela
+    reintroduziria uma falha por cliente por noite.
+    """
+    comandos = "\n".join(_crontab_lines())
+    assert "awk" not in comandos, "o cron voltou a parsear tabela; use `--slugs`"
+    assert "--slugs" in comandos
+
+
+DOCS_COM_PONTEIRO = (
+    ROOT / "docs" / "ORBI-CONVENCOES.md",
+    ROOT / "docs" / "ORBI-ARQUITETURA.md",
+)
+
+
+def test_every_prohibition_points_at_a_test_that_exists() -> None:
+    """A tabela de proibicoes e a unica coisa que as torna auditaveis.
+
+    Oito dos quinze ponteiros apontavam para arquivos que nunca existiram
+    (`test_pii.py`, `test_field_policy.py`, `test_import_lint.py`...). Os testes
+    existiam — em outros arquivos — mas quem fosse conferir "o Orbi nao envia PII
+    ao LLM" abriria o caminho citado, nao acharia nada, e concluiria com razao
+    que a garantia era ficcao.
+
+    Um ponteiro quebrado aqui e pior que ponteiro nenhum: ele parece prova.
+    """
+    arquivos_de_teste = {caminho.name: caminho for caminho in (ROOT / "tests").rglob("test_*.py")}
+    quebrados: list[str] = []
+    total = 0
+
+    for documento in DOCS_COM_PONTEIRO:
+        texto = documento.read_text(encoding="utf-8")
+        # ORBI-CONVENCOES cita com pasta (`unit/test_x.py::t`); ORBI-ARQUITETURA,
+        # so o nome do arquivo. As duas formas valem — o que nao vale e apontar
+        # para o que nao existe.
+        for arquivo, teste in re.findall(r"(test_[a-z_]+\.py)::(test_[a-z_]+)", texto):
+            total += 1
+            caminho = arquivos_de_teste.get(arquivo)
+            if caminho is None:
+                quebrados.append(f"{documento.name}: {arquivo} (arquivo)")
+            elif f"def {teste}(" not in caminho.read_text(encoding="utf-8"):
+                quebrados.append(f"{documento.name}: {arquivo}::{teste}")
+
+    assert total > 20, "os documentos perderam os ponteiros de teste"
+    assert quebrados == [], f"proibicao sem guarda: {quebrados}"
+
+
+def test_o_filtro_de_ramo_continua_nos_dois_documentos() -> None:
+    """D-045 e citado como filtro de decisao comercial em dois lugares.
+
+    Se as seis condicoes sairem do ORBI-COMERCIAL, a decisao vira uma opiniao
+    lembrada por alguem em vez de um criterio que se aplica.
+    """
+    comercial = (ROOT / "docs" / "ORBI-COMERCIAL.md").read_text(encoding="utf-8")
+    decisoes = (ROOT / "docs" / "ORBI-DECISOES.md").read_text(encoding="utf-8")
+
+    assert "O filtro para qualquer ramo novo" in comercial
+    assert comercial.count("| 6 |") >= 1, "as seis condicoes sumiram do filtro"
+    assert "D-045" in comercial and "D-045" in decisoes

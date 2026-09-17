@@ -133,13 +133,20 @@ class EntityResolver:
             query, entity_type
         )
         if alias_hit is not None:
-            return Resolution(
-                status="FOUND",
-                term=term,
-                entity_type=entity_type,
-                entity=alias_hit,
-                stage="alias",
-            )
+            candidato, confianca = alias_hit
+            if confianca == "confirmed":
+                # Dois usos independentes sem correcao: o vocabulario do cliente
+                # ja provou que este termo aponta para esta entidade.
+                return Resolution(
+                    status="FOUND",
+                    term=term,
+                    entity_type=entity_type,
+                    entity=candidato,
+                    stage="alias",
+                )
+            alias_provisorio = candidato
+        else:
+            alias_provisorio = None
 
         if allow_code_match and looks_like_code(query):
             code_hit = self._by_code(query, entity_type)
@@ -155,14 +162,83 @@ class EntityResolver:
         candidates = self._by_trigram(query, entity_type)
         decision = self._decide(candidates, term, entity_type, "trigram")
         if decision.status == "FOUND":
-            return decision
+            return self._conciliar(decision, alias_provisorio, term, entity_type)
 
         if deadline is not None and deadline.remaining_ms() < 100:
             # Sem orcamento para o estagio caro: devolve o que ja se sabe.
-            return decision
+            return self._conciliar(decision, alias_provisorio, term, entity_type)
 
         merged = self._merge(candidates, self._by_vector(query, entity_type))
-        return self._decide(merged, term, entity_type, "vector")
+        return self._conciliar(
+            self._decide(merged, term, entity_type, "vector"), alias_provisorio, term, entity_type
+        )
+
+    def _conciliar(
+        self,
+        decisao: Resolution,
+        alias_provisorio: Candidate | None,
+        term: str,
+        entity_type: str,
+    ) -> Resolution:
+        """Reconcilia um alias `low` com o que o catalogo diz (D-013).
+
+        Alias `low` nasceu de **um** toque de **uma** pessoa. Ele nao pode
+        atropelar o catalogo em silencio: era isso que permitia um toque errado
+        virar resposta confiante para toda a equipe daquele cliente, com nota
+        maxima e sem passar por limiar nenhum.
+
+        Tres casos, e so o terceiro e novo:
+
+        - **o catalogo concorda** — resposta direta, e o uso conta para promover;
+        - **o catalogo nao acha nada** — o alias e o unico sinal, entao vale; a
+          resposta mostra qual entidade foi usada, como sempre;
+        - **o catalogo aponta outra coisa** — discordancia. Perguntar, nunca
+          chutar: e a regra do produto, e e exatamente aqui que o toque errado
+          seria caro.
+        """
+        if alias_provisorio is None:
+            return decisao
+
+        if decisao.status == "FOUND" and decisao.entity is not None:
+            if decisao.entity.erp_entity_id == alias_provisorio.erp_entity_id:
+                return Resolution(
+                    status="FOUND",
+                    term=term,
+                    entity_type=entity_type,
+                    entity=alias_provisorio,
+                    stage="alias",
+                )
+            return Resolution(
+                status="AMBIGUOUS",
+                term=term,
+                entity_type=entity_type,
+                options=(alias_provisorio, decisao.entity),
+                stage=decisao.stage,
+            )
+
+        if decisao.status == "NOT_FOUND":
+            return Resolution(
+                status="FOUND",
+                term=term,
+                entity_type=entity_type,
+                entity=alias_provisorio,
+                stage="alias",
+            )
+
+        # Ambiguo: o alias entra na frente da lista, como sugestao — nao como
+        # certeza. Quem escolhe continua sendo a pessoa.
+        outros = tuple(
+            opcao
+            for opcao in decisao.options
+            if opcao.erp_entity_id != alias_provisorio.erp_entity_id
+        )
+        return Resolution(
+            status="AMBIGUOUS",
+            term=term,
+            entity_type=entity_type,
+            options=(alias_provisorio, *outros)[: max(len(decisao.options), 2)],
+            stage=decisao.stage,
+        )
 
     def candidates(self, term: str, entity_type: str) -> list[Candidate]:
         """Ranking bruto, sem aplicar limiar.
@@ -179,11 +255,16 @@ class EntityResolver:
 
     # --- estagios --------------------------------------------------------
 
-    def _by_alias(self, query: str, entity_type: str) -> Candidate | None:
+    def _by_alias(self, query: str, entity_type: str) -> tuple[Candidate, str] | None:
+        """Devolve o candidato **e a confianca** do alias.
+
+        A confianca importa: alias `low` nasceu de um unico toque de uma unica
+        pessoa, e um toque errado nao pode valer mais que o catalogo inteiro.
+        """
         row = self._session.execute(
             text(
                 """
-                SELECT c.erp_entity_id, c.name, c.canonical_name, c.code
+                SELECT c.erp_entity_id, c.name, c.canonical_name, c.code, a.confidence
                 FROM entity_aliases a
                 JOIN catalog c
                   ON c.tenant_id = a.tenant_id
@@ -200,13 +281,16 @@ class EntityResolver:
         ).first()
         if row is None:
             return None
-        return Candidate(
-            erp_entity_id=row.erp_entity_id,
-            name=row.name,
-            canonical_name=row.canonical_name,
-            code=row.code,
-            score=1.0,
-            stage="alias",
+        return (
+            Candidate(
+                erp_entity_id=row.erp_entity_id,
+                name=row.name,
+                canonical_name=row.canonical_name,
+                code=row.code,
+                score=1.0,
+                stage="alias",
+            ),
+            str(row.confidence),
         )
 
     def _by_code(self, query: str, entity_type: str) -> Candidate | None:

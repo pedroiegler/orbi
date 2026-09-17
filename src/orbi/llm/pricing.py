@@ -13,6 +13,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
+from orbi.core.settings import Settings
+
 CONFERIDO_EM = date(2026, 8, 29)
 """Ultima conferencia nas paginas oficiais dos tres fabricantes."""
 
@@ -90,3 +92,37 @@ def custo_usd(modelo: str, tokens_entrada: int, tokens_saida: int, cache_hit: fl
 def tabela_velha(hoje: date | None = None) -> int:
     """Dias desde a ultima conferencia; acima de `VALIDADE_DIAS`, avise."""
     return ((hoje or date.today()) - CONFERIDO_EM).days
+
+
+def modelos_sem_preco(settings: Settings) -> list[str]:
+    """Modelos em uso que a tabela nao conhece.
+
+    Modelo fora da tabela contabiliza **zero, em silencio** — de proposito, para
+    que preco nunca derrube um turno. Mas o resumo diario somaria zeros com cara
+    de medicao, e a decisao de plano sairia de um numero que nao existe. Entao o
+    silencio precisa ser quebrado em algum lugar, e o lugar e a porta de entrada.
+
+    So o primario e o fallback contam: modelo configurado e nao usado nao e
+    problema de producao.
+    """
+    configurados = {
+        "gemini": settings.gemini_model,
+        "anthropic": settings.anthropic_model,
+        "openai": settings.openai_model,
+    }
+    em_uso = [p for p in (settings.llm_primary, settings.llm_fallback) if p in configurados]
+    return [
+        f"{provedor.upper()}_MODEL='{configurados[provedor]}' fora da tabela de precos: "
+        "o custo por turno seria gravado como zero"
+        for provedor in sorted(set(em_uso))
+        if configurados[provedor] not in TABELA
+    ]
+
+
+def problemas_de_producao(settings: Settings) -> list[str]:
+    """Tudo que impede producao: as regras do core mais as de custo.
+
+    Existe para que `doctor` e o startup da API cheguem a mesma conclusao. Duas
+    listas divergentes seriam uma configuracao aprovada na CLI e recusada no ar.
+    """
+    return settings.validate_for_production() + modelos_sem_preco(settings)

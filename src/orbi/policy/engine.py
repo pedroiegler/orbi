@@ -22,13 +22,8 @@ from typing import Any
 from pydantic import ValidationError
 
 from orbi.policy.decision import PolicyDecision, ReasonCode, allow, deny
-from orbi.policy.field_policy import FIELD_POLICY
-from orbi.tools.registry import (
-    ROLE_CAPABILITIES,
-    TOOL_REGISTRY,
-    capabilities_for_role,
-    get_tool,
-)
+from orbi.policy.field_policy import CAPABILITY_FIELDS, TOOL_FIELDS
+from orbi.tools.registry import TOOL_REGISTRY, get_tool
 
 
 @dataclass
@@ -40,6 +35,11 @@ class PolicySubject:
     user_id: str
     user_active: bool
     role: str
+    capabilities: frozenset[str] = field(default_factory=frozenset)
+    """Permissoes efetivas do papel **naquele cliente** (D-040).
+
+    Vem resolvida pelo Runtime, nao deduzida do nome do papel: dois clientes
+    podem ter um `sales_rep` com acessos diferentes."""
     needs_reverification: bool = False
     enabled_tools: frozenset[str] = field(default_factory=frozenset)
     """`tenant_tools` habilitadas."""
@@ -102,10 +102,9 @@ def evaluate(
         return deny(ReasonCode.TOOL_NOT_SUPPORTED_BY_ERP, version, track("ToolSupportedByErp"))
     track("ToolSupportedByErp")
 
-    role_capabilities = capabilities_for_role(subject.role)
-    if not spec.required_capabilities <= role_capabilities:
+    if not spec.required_capabilities <= subject.capabilities:
         return deny(ReasonCode.TOOL_NOT_ALLOWED_FOR_ROLE, version, track("ToolAllowedForRole"))
-    if (subject.role, tool_name) not in FIELD_POLICY:
+    if tool_name not in TOOL_FIELDS:
         # Sem whitelist de campos nao ha resposta possivel: nega por omissao.
         return deny(ReasonCode.TOOL_NOT_ALLOWED_FOR_ROLE, version, track("ToolAllowedForRole"))
     track("ToolAllowedForRole")
@@ -152,10 +151,9 @@ def policy_version_hash(subject: PolicySubject) -> str:
         "tools": {
             name: sorted(spec.required_capabilities) for name, spec in sorted(TOOL_REGISTRY.items())
         },
-        "roles": {role: sorted(caps) for role, caps in sorted(ROLE_CAPABILITIES.items())},
-        "field_policy": {
-            f"{role}:{tool}": sorted(fields)
-            for (role, tool), fields in sorted(FIELD_POLICY.items())
+        "field_policy": {tool: sorted(fields) for tool, fields in sorted(TOOL_FIELDS.items())},
+        "capability_fields": {
+            cap: sorted(fields) for cap, fields in sorted(CAPABILITY_FIELDS.items())
         },
         "tenant": {
             "status": subject.tenant_status,
@@ -163,6 +161,9 @@ def policy_version_hash(subject: PolicySubject) -> str:
             "erp_supported_tools": sorted(subject.erp_supported_tools),
         },
         "user_role": subject.role,
+        # As permissoes efetivas entram na assinatura: um papel customizado
+        # precisa ser provavel meses depois (ORBI.md secao 6.8).
+        "user_capabilities": sorted(subject.capabilities),
     }
     payload = json.dumps(snapshot, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:32]

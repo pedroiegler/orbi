@@ -301,3 +301,79 @@ def test_out_of_scope_still_answers_out_of_scope(harness: Harness) -> None:
     outcome = harness.ask("qual a previsao do tempo para amanha?")
     assert outcome.status == "out_of_scope"
     assert "consulto" in outcome.text.lower()
+
+
+def test_o_codigo_do_rodape_encontra_o_turno_na_auditoria(harness: Harness) -> None:
+    """A promessa do modo debug so existe se o caminho de volta existir.
+
+    O codigo sair na resposta e metade: sem uma forma de encontra-lo, a primeira
+    ligacao de suporte terminaria em SQL escrito na mao contra `audit_logs`.
+    """
+    from typer.testing import CliRunner
+
+    from orbi.cli.main import app
+    from orbi.core.trace import short_code
+    from orbi.db.models import Tenant
+    from orbi.db.session import admin_session
+
+    with admin_session() as session:
+        tenant = session.get(Tenant, harness.tenant_id)
+        assert tenant is not None
+        tenant.debug_mode = True
+        slug = tenant.slug
+
+    resposta = harness.ask("quanto tem de cimento?")
+    assert resposta.status == "ok"
+    codigo = short_code(resposta.trace_id)
+    assert codigo in resposta.text, "o codigo precisa aparecer na resposta"
+
+    encontrado = CliRunner().invoke(app, ["trace", "show", codigo, "--tenant", slug])
+
+    assert encontrado.exit_code == 0, encontrado.output
+    assert "quanto tem de cimento?" in encontrado.output
+    assert "check_stock" in encontrado.output
+    assert resposta.trace_id in encontrado.output
+
+
+def test_codigo_inexistente_diz_o_que_fazer(harness: Harness) -> None:
+    from typer.testing import CliRunner
+
+    from orbi.cli.main import app
+    from orbi.db.models import Tenant
+    from orbi.db.session import admin_session
+
+    with admin_session() as session:
+        tenant = session.get(Tenant, harness.tenant_id)
+        assert tenant is not None
+        slug = tenant.slug
+
+    resultado = CliRunner().invoke(app, ["trace", "show", "ZZZZZZ", "--tenant", slug])
+    assert resultado.exit_code != 0
+    assert "--dias" in resultado.output
+
+
+def test_o_codigo_de_um_cliente_nao_encontra_turno_de_outro(harness: Harness) -> None:
+    """A busca corre dentro da sessao do tenant, entao a RLS vale aqui tambem."""
+    from typer.testing import CliRunner
+
+    from orbi.cli.main import app
+    from orbi.core.trace import short_code
+    from orbi.db.models import Tenant
+    from orbi.db.session import admin_session
+
+    resposta = harness.ask("quanto tem de cimento?")
+    codigo = short_code(resposta.trace_id)
+
+    outro = f"vizinho{uuid.uuid4().hex[:8]}"
+    criado = CliRunner().invoke(
+        app,
+        ["tenant", "add", "--tenant", outro, "--name", "Vizinho",
+         "--phone", f"+5543{uuid.uuid4().int % 10**9:09d}", "--plan", "essencial"],
+    )
+    assert criado.exit_code == 0, criado.output
+
+    with admin_session() as session:
+        assert session.query(Tenant).filter_by(slug=outro).one() is not None
+
+    procurado = CliRunner().invoke(app, ["trace", "show", codigo, "--tenant", outro])
+    assert procurado.exit_code != 0
