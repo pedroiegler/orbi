@@ -280,7 +280,10 @@ E quando ele escolhe "2", duas coisas acontecem:
 1. a resposta sai **sem nova chamada ao LLM** (é determinístico, e é barato);
 2. o termo vira **alias daquele cliente** — mas com `confidence=low`, promovido só
    após dois usos sem correção. Um toque errado não pode envenenar a resolução
-   para sempre.
+   para sempre — e isso é comportamento, não etiqueta: a cascata **lê** a
+   confiança, e um alias `low` que discorda do catálogo vira "qual desses?" em vez
+   de resposta (D-044). Antes dessa correção a coluna era escrita e nunca lida, e
+   um único toque errado virava resposta confiante para toda a equipe do cliente.
 
 Esse vocabulário acumulado é o ativo mais durável do produto: não se copia, se
 acumula.

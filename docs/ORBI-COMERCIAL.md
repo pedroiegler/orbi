@@ -243,6 +243,19 @@ Um distribuidor com 10 vendedores que economizam 20 minutos por dia deixando de
 ligar para o escritório recupera **mais de 60 horas por mês**. Cobrar R$ 890 por
 isso é conversa fácil.
 
+## Os papéis são do cliente, não nossos
+
+Todo cliente começa com vendedor, financeiro e administrador. Mas cada empresa
+tem processo próprio — há distribuidor onde o vendedor negocia margem e precisa
+ver custo; há onde não pode ver preço de tabela sem aprovação. **Cada cliente
+define os próprios papéis e permissões, sem desenvolvimento e sem deploy**
+(D-040): `orbi role set` na implantação, e pronto.
+
+A frase para a venda: *"Quem vê o quê é decisão sua, não nossa. Configuramos do
+jeito que a sua empresa funciona, na hora da implantação."* Funciona porque é
+verdade — e porque o assistente nativo do ERP não oferece isso: lá, ou a pessoa
+tem acesso ao sistema inteiro, ou não tem nada.
+
 ---
 
 # O que **não** dizer
