@@ -282,15 +282,31 @@ da meta de 2 a 4 segundos do produto.
 
 ## A configuração recomendada hoje
 
+Depende de quem está do outro lado:
+
+**Desenvolvimento e PoC** — Gemini na camada gratuita (D-035):
+
 ```bash
+ORBI_LLM_PRIMARY=gemini
 GEMINI_MODEL=gemini-3.5-flash-lite
 GEMINI_THINKING_BUDGET=-1
 ```
 
-E a ressalva honesta: mesmo o `lite` teve variação grande na camada gratuita —
-uma chamada passou de 20 segundos. Para PoC serve; para cliente pagante, o teste
-de verdade é medir o p95 durante uma semana e decidir entre subir para a camada
-paga ou trocar de fabricante.
+Mesmo o `lite` teve variação grande na camada gratuita — uma chamada passou de 20
+segundos — e a cota é de 20 perguntas/dia por modelo. Para PoC serve; para cliente
+pagante, não.
+
+**Cliente pagante** — OpenAI primário, Anthropic fallback (D-047):
+
+```bash
+ORBI_LLM_PRIMARY=openai
+OPENAI_MODEL=gpt-5-mini
+ORBI_LLM_FALLBACK=anthropic
+ANTHROPIC_MODEL=claude-sonnet-5
+```
+
+Os defaults do código já são estes modelos; o que muda no `.env` é o primário, o
+fallback e as chaves. A chave pode ser por cliente (`orbi tenant set-llm`, D-041).
 
 ## Quando o 429 aparecer
 

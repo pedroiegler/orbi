@@ -1301,6 +1301,17 @@ meta de latência.
 
 ---
 
+## E com cliente pagante?
+
+**OpenAI primário, Anthropic fallback** (D-047). O Gemini que você mediu aqui fica
+para desenvolvimento e PoC: a cota gratuita é de 20 perguntas por dia por modelo, e
+a variância chegou a 20 segundos numa chamada — nada disso atende um cliente com
+10 vendedores. Os defaults do código já são `gpt-5-mini` e `claude-sonnet-5`; com a
+chave em mãos, o `orbi bench` decide entre o `5-mini` e o `4.1-mini`. Configuração em
+[ORBI-CONFIGURACAO.md](ORBI-CONFIGURACAO.md); a chave pode ser por cliente (D-041).
+
+---
+
 # Parte 12 — WhatsApp: como conseguir o número
 
 Você perguntou como conseguir de graça. Dá, e o caminho é este.
