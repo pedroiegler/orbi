@@ -215,18 +215,32 @@ Camada gratuita, p50 de 706 ms, 90% de acerto. A cota de 20 perguntas/dia por
 modelo é o limite real — dá para uma demonstração, **não** para um cliente com
 10 vendedores.
 
-## Para o primeiro cliente pagante
-Ative billing no Google (a mesma chave passa a ter cota de produção) **ou** vá
-para OpenAI. Meça antes de decidir:
+## Para cliente pagante: OpenAI primário, Anthropic fallback (D-047)
+
+**Decidido:** com cliente, o Orbi roda em **OpenAI** (primário) com **Anthropic**
+de fallback — dois fabricantes pagos, como a regra do failover exige. **Gemini fica
+para desenvolvimento e PoC**: a camada gratuita tem cota de 20 perguntas/dia por
+modelo e variância que já passou de 20 s numa chamada; nada disso serve a um
+cliente com 10 vendedores.
 
 ```bash
-orbi bench --provider gemini --model gemini-3.5-flash-lite
-orbi bench --provider openai --model gpt-4.1-mini
-orbi bench --provider openai --model gpt-5-mini
+ORBI_LLM_PRIMARY=openai
+OPENAI_MODEL=gpt-5-mini          # default do código; o bench decide entre ele e o 4.1-mini
+ORBI_LLM_FALLBACK=anthropic
+ANTHROPIC_MODEL=claude-sonnet-5
 ```
 
-E configure o fallback de **outro fabricante** — o Orbi recusa subir com os dois
-do mesmo, porque a queda seria correlacionada.
+O que **ainda se mede**, no dia em que houver chave, é o modelo *dentro* do
+fabricante — não o fabricante:
+
+```bash
+orbi bench --provider openai --model gpt-5-mini
+orbi bench --provider openai --model gpt-4.1-mini
+```
+
+Cada cliente pode ter a própria chave num projeto OpenAI próprio, com teto de gasto
+que corta só ele (D-041). O custo continua irrelevante frente ao resto: R$ 6–30 por
+cliente/mês em qualquer dos dois.
 
 ## Quando subir para um modelo mais caro
 Quando o resumo diário mostrar taxa de ambiguidade alta que **não** seja culpa do
