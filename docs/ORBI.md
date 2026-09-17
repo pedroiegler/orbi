@@ -646,7 +646,7 @@ Cada conceito tem um mecanismo concreto, não apenas uma intenção:
 | Authorization | Policy Layer deny-by-default, decisão tipada com `reason_code` |
 | RBAC | capabilities internas; 3 papéis padrão (`sales_rep`, `finance`, `admin`) e papéis próprios por cliente (D-040) |
 | Field-level | Field Policy na saída do Adapter, whitelist por `(permissão, tool)` |
-| Tenant isolation | `tenant_id` em tudo + RLS + canary tenant no CI |
+| Tenant isolation | `tenant_id` + RLS forçado em toda tabela com dado de cliente (as globais são declaradas e testadas) + canary tenant no CI |
 | RLS | Role sem `BYPASSRLS`, `FORCE ROW LEVEL SECURITY`, `SET LOCAL app.tenant_id` |
 | Secrets | Credenciais de ERP cifradas na aplicação, chave fora do banco |
 | Least privilege | Tools filtradas por papel antes de chegarem ao modelo |
